@@ -35,10 +35,16 @@ def generate_background(prompt: str, width: int, height: int, api_key: str = "",
     for attempt in range(1, max_retries + 1):
         try:
             resp = requests.get(url, headers=headers, params=params, timeout=120)
-            resp.raise_for_status()
+            if resp.status_code >= 400:
+                raise RuntimeError(
+                    f"HTTP {resp.status_code} da Pollinations: {resp.text[:500]!r}"
+                )
             if resp.headers.get("content-type", "").startswith("image/"):
                 return resp.content
-            last_error = ValueError("La risposta non è un'immagine valida")
+            last_error = ValueError(
+                f"La risposta non è un'immagine valida (content-type: "
+                f"{resp.headers.get('content-type')!r}): {resp.text[:300]!r}"
+            )
         except Exception as exc:  # noqa: BLE001
             last_error = exc
 
