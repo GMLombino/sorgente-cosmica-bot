@@ -43,9 +43,20 @@ def generate_phrase(system_prompt: str, recent_phrases: list, api_key: str = "",
     for attempt in range(1, max_retries + 1):
         try:
             resp = requests.post(TEXT_ENDPOINT, headers=headers, json=payload, timeout=60)
-            resp.raise_for_status()
-            content = resp.json()["choices"][0]["message"]["content"]
+            if resp.status_code >= 400:
+                raise RuntimeError(
+                    f"HTTP {resp.status_code} da Pollinations: {resp.text[:500]!r}"
+                )
+            try:
+                response_json = resp.json()
+            except ValueError as exc:
+                raise RuntimeError(
+                    f"Risposta non JSON (status {resp.status_code}): {resp.text[:500]!r}"
+                ) from exc
+            content = response_json["choices"][0]["message"]["content"]
             content = content.strip()
+            if not content:
+                raise RuntimeError(f"Contenuto vuoto nella risposta: {response_json!r}")
             # Il modello a volte avvolge il JSON in blocchi ```json ... ``` nonostante le istruzioni
             if content.startswith("```"):
                 content = content.strip("`")
