@@ -1,0 +1,38 @@
+name: Pubblicazione giornaliera Instagram
+
+on:
+  schedule:
+    # Esempio: ogni giorno alle 08:00 ora italiana.
+    # GitHub Actions usa sempre UTC: 08:00 in Italia è le 06:00 UTC in inverno (CET, UTC+1)
+    # e le 07:00 UTC in estate (CEST, UTC+2). Con questa riga si va sull'orario invernale;
+    # in estate il post uscirà un'ora prima del previsto (le 07:00 invece delle 08:00).
+    - cron: "0 6 * * *"
+  workflow_dispatch: {}  # permette di lanciarlo manualmente da GitHub per fare test
+
+permissions:
+  contents: write  # necessario per aggiornare history.json e caricare le immagini
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Imposta Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Installa dipendenze
+        run: pip install -r requirements.txt
+
+      - name: Esegui lo script di pubblicazione
+        env:
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          POLLINATIONS_API_KEY: ${{ secrets.POLLINATIONS_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPO: ${{ github.repository }}
+          GITHUB_IMAGES_BRANCH: ${{ github.ref_name }}
+        run: python main.py
