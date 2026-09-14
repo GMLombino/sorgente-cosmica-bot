@@ -3,6 +3,7 @@ Generazione della frase quotidiana tramite l'API di testo di Pollinations
 (https://text.pollinations.ai/openai, compatibile OpenAI).
 """
 import json
+import re
 import time
 import requests
 
@@ -17,6 +18,31 @@ def _build_user_prompt(recent_phrases: list) -> str:
         "Queste sono le frasi già pubblicate di recente: evita di ripeterle "
         "o di generarne di troppo simili nel significato.\n" + elenco
     )
+
+
+def _extract_json_object(text: str) -> dict:
+    """
+    Prova ad interpretare il testo come JSON. Se il modello ha aggiunto
+    testo extra prima/dopo (nonostante le istruzioni), estrae la prima
+    sottostringa che sembra un oggetto JSON valido e riprova con quella.
+    """
+    text = text.strip()
+    if text.startswith("```"):
+        text = text.strip("`")
+        if text.lower().startswith("json"):
+            text = text.split("\n", 1)[-1]
+        text = text.strip()
+
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+
+    match = re.search(r"\{.*\}", text, re.DOTALL)
+    if match:
+        return json.loads(match.group(0))
+
+    raise ValueError(f"Nessun oggetto JSON individuabile nella risposta: {text[:300]!r}")
 
 
 def generate_phrase(system_prompt: str, recent_phrases: list, api_key: str = "",
@@ -37,6 +63,7 @@ def generate_phrase(system_prompt: str, recent_phrases: list, api_key: str = "",
         ],
         "temperature": 1.1,
         "max_tokens": 300,
+        "response_format": {"type": "json_object"},
     }
 
     last_error = None
@@ -57,11 +84,7 @@ def generate_phrase(system_prompt: str, recent_phrases: list, api_key: str = "",
             content = content.strip()
             if not content:
                 raise RuntimeError(f"Contenuto vuoto nella risposta: {response_json!r}")
-            # Il modello a volte avvolge il JSON in blocchi ```json ... ``` nonostante le istruzioni
-            if content.startswith("```"):
-                content = content.strip("`")
-                content = content.split("\n", 1)[-1] if content.lower().startswith("json") else content
-            data = json.loads(content)
+            data = _extract_json_object(content)
             if "frase" in data and data["frase"].strip():
                 return {"frase": data["frase"].strip(), "tema": data.get("tema", "").strip()}
             last_error = ValueError(f"Risposta senza campo 'frase' valido: {content!r}")
