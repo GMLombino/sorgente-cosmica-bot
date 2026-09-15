@@ -54,18 +54,23 @@ def _graph_request(method: str, path: str, **kwargs) -> dict:
 
 
 def publish_image_to_instagram(ig_user_id: str, access_token: str, image_url: str,
-                                 caption: str, max_wait_seconds: int = 90) -> str:
+                                caption: str, max_wait_seconds: int = 90) -> str:
     """
     Crea il container media, attende che sia pronto, poi lo pubblica.
     Ritorna l'ID del media pubblicato.
     """
+    # Stampa di debug temporanea
+    clean_token = access_token.strip() if access_token else ""
+    print(f"[debug] User ID: '{ig_user_id}'")
+    print(f"[debug] Token length: {len(clean_token)}, Inizia con: '{clean_token[:10]}...'")
+
     container = _graph_request(
         "POST",
         f"{ig_user_id}/media",
         data={
             "image_url": image_url,
             "caption": caption,
-            "access_token": access_token,
+            "access_token": clean_token,
         },
     )
     container_id = container["id"]
