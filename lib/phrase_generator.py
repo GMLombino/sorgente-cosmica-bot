@@ -1,6 +1,5 @@
 """
-Generazione della frase quotidiana tramite l'API di testo di Pollinations
-(https://text.pollinations.ai/openai, compatibile OpenAI).
+Generazione della frase quotidiana tramite l'API Gemini
 """
 import json
 from google import genai
