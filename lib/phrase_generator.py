@@ -3,96 +3,37 @@ Generazione della frase quotidiana tramite l'API di testo di Pollinations
 (https://text.pollinations.ai/openai, compatibile OpenAI).
 """
 import json
-import re
-import time
-import requests
+from google import genai
+from google.genai import types
+from pydantic import BaseModel
 
-TEXT_ENDPOINT = "https://text.pollinations.ai/openai"
+class PhraseOutput(BaseModel):
+    frase: str
+    tema: str
 
+def generate_phrase(system_prompt: str, recent_phrases: list[str], api_key: str) -> dict:
+    if not api_key:
+        raise ValueError("GEMINI_API_KEY non configurata.")
 
-def _build_user_prompt(recent_phrases: list) -> str:
-    if not recent_phrases:
-        return "Genera la prima frase."
-    elenco = "\n".join(f"- {p}" for p in recent_phrases)
-    return (
-        "Queste sono le frasi già pubblicate di recente: evita di ripeterle "
-        "o di generarne di troppo simili nel significato.\n" + elenco
+    client = genai.Client(api_key=api_key)
+
+    user_prompt = "Genera una nuova frase spirituale."
+    if recent_phrases:
+        user_prompt += "\n\nEvita di ripetere o rielaborare frasi simili a queste già usate di recente:\n"
+        user_prompt += "\n".join(f"- {p}" for p in recent_phrases)
+
+    config = types.GenerateContentConfig(
+        system_instruction=system_prompt,
+        temperature=0.7,
+        response_mime_type="application/json",
+        response_schema=PhraseOutput,
     )
 
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=user_prompt,
+        config=config,
+    )
 
-def _extract_json_object(text: str) -> dict:
-    """
-    Prova ad interpretare il testo come JSON. Se il modello ha aggiunto
-    testo extra prima/dopo (nonostante le istruzioni), estrae la prima
-    sottostringa che sembra un oggetto JSON valido e riprova con quella.
-    """
-    text = text.strip()
-    if text.startswith("```"):
-        text = text.strip("`")
-        if text.lower().startswith("json"):
-            text = text.split("\n", 1)[-1]
-        text = text.strip()
-
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        pass
-
-    match = re.search(r"\{.*\}", text, re.DOTALL)
-    if match:
-        return json.loads(match.group(0))
-
-    raise ValueError(f"Nessun oggetto JSON individuabile nella risposta: {text[:300]!r}")
-
-
-def generate_phrase(system_prompt: str, recent_phrases: list, api_key: str = "",
-                     max_retries: int = 3) -> dict:
-    """
-    Ritorna un dict {"frase": ..., "tema": ...}.
-    Solleva un'eccezione se dopo max_retries tentativi non ottiene una risposta valida.
-    """
-    headers = {"Content-Type": "application/json"}
-    if api_key:
-        headers["Authorization"] = f"Bearer {api_key}"
-
-    payload = {
-        "model": "openai",
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": _build_user_prompt(recent_phrases)},
-        ],
-        "temperature": 1.1,
-        "max_tokens": 300,
-        "response_format": {"type": "json_object"},
-    }
-
-    last_error = None
-    for attempt in range(1, max_retries + 1):
-        try:
-            resp = requests.post(TEXT_ENDPOINT, headers=headers, json=payload, timeout=60)
-            if resp.status_code >= 400:
-                raise RuntimeError(
-                    f"HTTP {resp.status_code} da Pollinations: {resp.text[:500]!r}"
-                )
-            try:
-                response_json = resp.json()
-            except ValueError as exc:
-                raise RuntimeError(
-                    f"Risposta non JSON (status {resp.status_code}): {resp.text[:500]!r}"
-                ) from exc
-            content = response_json["choices"][0]["message"]["content"]
-            content = content.strip()
-            if not content:
-                raise RuntimeError(f"Contenuto vuoto nella risposta: {response_json!r}")
-            data = _extract_json_object(content)
-            if "frase" in data and data["frase"].strip():
-                return {"frase": data["frase"].strip(), "tema": data.get("tema", "").strip()}
-            last_error = ValueError(f"Risposta senza campo 'frase' valido: {content!r}")
-        except Exception as exc:  # noqa: BLE001 - vogliamo loggare e ritentare qualsiasi errore
-            last_error = exc
-
-        wait = 2 ** attempt
-        print(f"[phrase_generator] tentativo {attempt} fallito ({last_error}); riprovo tra {wait}s")
-        time.sleep(wait)
-
-    raise RuntimeError(f"Generazione frase fallita dopo {max_retries} tentativi: {last_error}")
+    data = json.loads(response.text)
+    return {"frase": data["frase"], "tema": data["tema"]}
