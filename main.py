@@ -22,15 +22,12 @@ def get_unique_phrase() -> dict:
 
     for _ in range(3):
         result = phrase_generator.generate_phrase(
-            config.PHRASE_SYSTEM_PROMPT, recent, config.POLLINATIONS_API_KEY
+            config.PHRASE_SYSTEM_PROMPT, recent, config.GEMINI_API_KEY
         )
         if not history.is_duplicate(config.HISTORY_FILE, result["frase"]):
             return result
         print(f"[main] Frase duplicata generata, riprovo: {result['frase']!r}")
 
-    # Se dopo 3 tentativi è ancora duplicata, la usiamo comunque piuttosto che
-    # bloccare la pubblicazione del giorno (meglio un doppione occasionale
-    # che saltare un giorno).
     return result
 
 
