@@ -59,14 +59,16 @@ def publish_image_to_instagram(ig_user_id: str, access_token: str, image_url: st
     Crea il container media, attende che sia pronto, poi lo pubblica.
     Ritorna l'ID del media pubblicato.
     """
-    # Stampa di debug temporanea
+    # Stampa di debug temporanea e pulizia stringhe
     clean_token = access_token.strip() if access_token else ""
-    print(f"[debug] User ID: '{ig_user_id}'")
+    clean_user_id = ig_user_id.strip() if ig_user_id else ""
+
+    print(f"[debug] User ID: '{clean_user_id}'")
     print(f"[debug] Token length: {len(clean_token)}, Inizia con: '{clean_token[:10]}...'")
 
     container = _graph_request(
         "POST",
-        f"{ig_user_id}/media",
+        f"{clean_user_id}/media",
         data={
             "image_url": image_url,
             "caption": caption,
@@ -81,7 +83,7 @@ def publish_image_to_instagram(ig_user_id: str, access_token: str, image_url: st
         status = _graph_request(
             "GET",
             container_id,
-            params={"fields": "status_code", "access_token": access_token},
+            params={"fields": "status_code", "access_token": clean_token},
         )
         code = status.get("status_code")
         if code == "FINISHED":
@@ -93,10 +95,10 @@ def publish_image_to_instagram(ig_user_id: str, access_token: str, image_url: st
 
     publish = _graph_request(
         "POST",
-        f"{ig_user_id}/media_publish",
+        f"{clean_user_id}/media_publish",
         data={
             "creation_id": container_id,
-            "access_token": access_token,
+            "access_token": clean_token,
         },
     )
     return publish["id"]
