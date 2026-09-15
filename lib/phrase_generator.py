@@ -28,6 +28,7 @@ def generate_phrase(system_prompt: str, recent_phrases: list[str], api_key: str)
         temperature=0.7,
         response_mime_type="application/json",
         response_schema=PhraseOutput,
+        automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
     )
 
     response = client.models.generate_content(
