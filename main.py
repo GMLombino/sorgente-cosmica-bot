@@ -13,7 +13,7 @@ import sys
 from datetime import date
 
 import config
-from lib import history, phrase_generator, image_generator, compose, publisher
+from lib import history, phrase_generator, image_generator, background, compose, publisher
 
 
 def get_unique_phrase() -> dict:
@@ -34,6 +34,30 @@ def get_unique_phrase() -> dict:
     return result
 
 
+def get_background() -> bytes:
+    """
+    Genera lo sfondo secondo la sorgente scelta in config.
+    Se la generazione via IA fallisce, ripiega sul locale invece di
+    saltare la pubblicazione del giorno.
+    """
+    if config.BACKGROUND_SOURCE == "ia":
+        try:
+            data = image_generator.generate_background(
+                config.IMAGE_PROMPT_TEMPLATE, config.IMAGE_WIDTH, config.IMAGE_HEIGHT,
+                config.POLLINATIONS_API_KEY,
+            )
+            print("[main] Sfondo generato via IA.")
+            return data
+        except Exception as exc:  # noqa: BLE001
+            print(f"[main] Sfondo IA non disponibile ({exc}); uso lo sfondo locale.")
+
+    data = background.generate_background(
+        config.IMAGE_WIDTH, config.IMAGE_HEIGHT, config.BACKGROUND_COLOR_HEX
+    )
+    print("[main] Sfondo generato in locale.")
+    return data
+
+
 def build_caption(tema: str) -> str:
     intro = f"✨ {tema}\n\n" if tema else ""
     return f"{intro}{config.HASHTAGS}"
@@ -46,14 +70,10 @@ def run() -> None:
     frase, tema = fraseData["frase"], fraseData["tema"]
     print(f"[main] Frase generata: {frase}")
 
-    background = image_generator.generate_background(
-        config.IMAGE_PROMPT_TEMPLATE, config.IMAGE_WIDTH, config.IMAGE_HEIGHT,
-        config.POLLINATIONS_API_KEY,
-    )
-    print("[main] Sfondo generato.")
+    sfondo = get_background()
 
     final_image = compose.compose_image(
-        background, frase, config.SIGNATURE_TEXT,
+        sfondo, frase, config.SIGNATURE_TEXT,
         config.IMAGE_WIDTH, config.IMAGE_HEIGHT,
         config.FONT_BODY_PATH, config.FONT_BODY_VARIATION,
         config.FONT_SIGNATURE_PATH, config.FONT_SIGNATURE_VARIATION,

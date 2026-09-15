@@ -5,9 +5,13 @@ e pubblica il risultato su Instagram. Completamente gratuito.
 
 ## Come funziona
 
-1. **Frase**: generata con l'API di testo gratuita di Pollinations.ai, evitando ripetizioni
-   rispetto allo storico (`history.json`).
-2. **Sfondo**: generato con l'API immagini gratuita di Pollinations.ai (nessun testo scritto dal modello).
+1. **Frase**: generata con l'API di testo di Pollinations.ai (serve una API key gratuita),
+   evitando ripetizioni rispetto allo storico (`history.json`).
+2. **Sfondo**: generato **in locale** con Pillow — blu profondo, sfumatura morbida, accenno
+   di nebulosa e stelle. Nessuna chiamata di rete, quindi istantaneo e senza consumo di crediti.
+   Ogni giorno varia leggermente (posizione della luce, stelle, sfumature) mantenendo lo stesso stile.
+   In `config.py` puoi impostare `BACKGROUND_SOURCE = "ia"` per farlo generare invece da Pollinations:
+   in quel caso, se la chiamata fallisce, lo script ripiega automaticamente sullo sfondo locale.
 3. **Composizione**: la frase e la firma "Sorgente Cosmica" vengono disegnate sopra lo sfondo
    con Pillow (font Raleway per il testo, Quicksand per la firma).
 4. **Pubblicazione**: l'immagine finale viene caricata nel repo GitHub (per avere un URL pubblico)
@@ -30,7 +34,7 @@ Vai su **Settings → Secrets and variables → Actions → New repository secre
 | ----------------------- | ---------------------------------------------------------------- |
 | `IG_ACCESS_TOKEN`       | Il token generato nella dashboard Meta (API setup con Instagram Login) |
 | `IG_USER_ID`            | L'Instagram User ID collegato al token (visibile nella stessa schermata) |
-| `POLLINATIONS_API_KEY`  | Opzionale — lascia vuoto se non ne hai una, il servizio funziona comunque in forma gratuita/anonima |
+| `POLLINATIONS_API_KEY`  | **Necessaria.** Chiave gratuita da enter.pollinations.ai (registrazione con email, niente carta di credito). Le richieste anonime da GitHub Actions falliscono perché l'IP è condiviso con molti altri progetti e la quota anonima risulta esaurita. |
 
 Non serve creare un secret per `GITHUB_TOKEN`: GitHub Actions lo fornisce automaticamente
 ad ogni esecuzione, con permessi di scrittura sul repo (già abilitati nel workflow).

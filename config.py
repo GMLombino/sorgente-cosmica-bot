@@ -68,7 +68,13 @@ HASHTAGS = (
     "#risveglio #spiritualitàpratica #fede #trasformazione #ermetismo #armonia #vangelo"
 )
 
-# --- Prompt per la generazione dell'immagine di sfondo (modello immagine) ----------
+# --- Sorgente dello sfondo -----------------------------------------------------------
+# "locale"  = sfondo generato dal computer con Pillow (istantaneo, gratuito, infallibile)
+# "ia"      = sfondo generato da Pollinations (più varietà, ma dipende dalla rete e dai crediti)
+# Con "ia", se la generazione fallisce lo script ripiega automaticamente sul locale.
+BACKGROUND_SOURCE = "locale"
+
+# --- Prompt per la generazione dell'immagine di sfondo (usato solo se BACKGROUND_SOURCE = "ia")
 IMAGE_PROMPT_TEMPLATE = (
     "elegant spiritual minimalist background, deep midnight blue color palette "
     "(#0A0F2C), soft glowing light, ethereal atmosphere, subtle cosmic texture, "
