@@ -6,9 +6,11 @@ from google import genai
 from google.genai import types
 from pydantic import BaseModel
 
+
 class PhraseOutput(BaseModel):
     frase: str
     tema: str
+
 
 def generate_phrase(system_prompt: str, recent_phrases: list[str], api_key: str) -> dict:
     if not api_key:
