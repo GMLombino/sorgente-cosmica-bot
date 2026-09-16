@@ -59,15 +59,13 @@ Linee guida per la frase:
 - Niente tono predicatorio o dogmatico.
 - Deve sembrare una "chiave" che apre una domanda interiore, non un'affirmatione chiusa.
 
-Rispondi usando la struttura JSON richiesta.
+Rispondi ESCLUSIVAMENTE con un oggetto JSON valido (senza blocchi di codice ```json o testo prima/dopo) con questa struttura esatta:
+{
+  "frase_immagine": "La frase breve da stampare sull'immagine (max 30 parole).",
+  "spiegazione": "Un breve paragrafo di 2-3 frasi che approfondisce e spiega il significato spirituale della frase.",
+  "hashtags": "Metti esattamente 5 hashtag in italiano, separati da spazio, strettamente pertinenti al tema della frase."
+}
 """
-
-HASHTAGS = (
-    "#verità #consapevolezza #spiritualità #dio #vita #presenza #resurrezione "
-    "#rinascita #codicedicristo #leggiuniversali #equilibrio #crescitainteriore "
-    "#risveglio #spiritualitàpratica #fede #trasformazione #ermetismo #armonia #vangelo"
-)
-
 BACKGROUND_SOURCE = "locale"
 
 IMAGE_PROMPT_TEMPLATE = (
