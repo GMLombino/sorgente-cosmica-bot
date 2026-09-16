@@ -2,11 +2,11 @@
 Script principale: da lanciare una volta al giorno (via GitHub Actions o cron).
 
 Flusso:
-1. Genera una frase (evitando ripetizioni rispetto allo storico)
+1. Genera frase, spiegazione, hashtag e tema (evitando ripetizioni rispetto allo storico)
 2. Genera un'immagine di sfondo
-3. Sovrappone frase + firma con Pillow
+3. Sovrappone la sola frase_immagine + firma con Pillow
 4. Carica l'immagine finale su GitHub (per avere un URL pubblico)
-5. Pubblica su Instagram
+5. Pubblica su Instagram con la caption strutturata
 6. Aggiorna lo storico (in locale e su GitHub)
 """
 import sys
@@ -24,9 +24,9 @@ def get_unique_phrase() -> dict:
         result = phrase_generator.generate_phrase(
             config.PHRASE_SYSTEM_PROMPT, recent, config.GEMINI_API_KEY
         )
-        if not history.is_duplicate(config.HISTORY_FILE, result["frase"]):
+        if not history.is_duplicate(config.HISTORY_FILE, result["frase_immagine"]):
             return result
-        print(f"[main] Frase duplicata generata, riprovo: {result['frase']!r}")
+        print(f"[main] Frase duplicata generata, riprovo: {result['frase_immagine']!r}")
 
     return result
 
@@ -56,7 +56,7 @@ def get_background() -> bytes:
 
 
 def build_caption(frase: str, spiegazione: str, hashtags: str) -> str:
-    """Compone la caption finale per Instagram con frase, spiegazione e hashtag."""
+    """Compone la caption finale per Instagram."""
     return f"{frase}\n\n✨ {spiegazione}\n\n.\n.\n{hashtags}"
 
 
@@ -64,13 +64,10 @@ def run() -> None:
     print("[main] Avvio generazione contenuto del giorno...")
 
     fraseData = get_unique_phrase()
-    
-    # Estraiamo i campi ricevuti dal nuovo JSON dell'IA
-    # (Se fraseData supporta il fallback per 'frase', gestiamo il controllo duplicati in modo sicuro)
-    frase = fraseData.get("frase_immagine") or fraseData.get("frase", "")
-    spiegazione = fraseData.get("spiegazione", "")
-    hashtags = fraseData.get("hashtags", "")
-    tema = fraseData.get("tema", "") # Manteniamo eventuale campo tema per lo storico
+    frase = fraseData["frase_immagine"]
+    spiegazione = fraseData["spiegazione"]
+    hashtags = fraseData["hashtags"]
+    tema = fraseData["tema"]
 
     print(f"[main] Frase generata per l'immagine: {frase}")
 
@@ -93,9 +90,7 @@ def run() -> None:
     )
     print(f"[main] Immagine caricata: {image_url}")
 
-    # Costruiamo la nuova caption formattata
     caption = build_caption(frase, spiegazione, hashtags)
-    
     media_id = publisher.publish_image_to_instagram(
         config.IG_USER_ID, config.IG_ACCESS_TOKEN, image_url, caption,
     )
