@@ -55,17 +55,24 @@ def get_background() -> bytes:
     return data
 
 
-def build_caption(tema: str) -> str:
-    intro = f"✨ {tema}\n\n" if tema else ""
-    return f"{intro}{config.HASHTAGS}"
+def build_caption(frase: str, spiegazione: str, hashtags: str) -> str:
+    """Compone la caption finale per Instagram con frase, spiegazione e hashtag."""
+    return f"{frase}\n\n✨ {spiegazione}\n\n.\n.\n{hashtags}"
 
 
 def run() -> None:
     print("[main] Avvio generazione contenuto del giorno...")
 
     fraseData = get_unique_phrase()
-    frase, tema = fraseData["frase"], fraseData["tema"]
-    print(f"[main] Frase generata: {frase}")
+    
+    # Estraiamo i campi ricevuti dal nuovo JSON dell'IA
+    # (Se fraseData supporta il fallback per 'frase', gestiamo il controllo duplicati in modo sicuro)
+    frase = fraseData.get("frase_immagine") or fraseData.get("frase", "")
+    spiegazione = fraseData.get("spiegazione", "")
+    hashtags = fraseData.get("hashtags", "")
+    tema = fraseData.get("tema", "") # Manteniamo eventuale campo tema per lo storico
+
+    print(f"[main] Frase generata per l'immagine: {frase}")
 
     sfondo = get_background()
 
@@ -86,7 +93,9 @@ def run() -> None:
     )
     print(f"[main] Immagine caricata: {image_url}")
 
-    caption = build_caption(tema)
+    # Costruiamo la nuova caption formattata
+    caption = build_caption(frase, spiegazione, hashtags)
+    
     media_id = publisher.publish_image_to_instagram(
         config.IG_USER_ID, config.IG_ACCESS_TOKEN, image_url, caption,
     )
