@@ -2,11 +2,10 @@ name: Pubblicazione giornaliera Instagram
 
 on:
   schedule:
-    # Esempio: ogni giorno alle 08:00 ora italiana.
-    # GitHub Actions usa sempre UTC: 08:00 in Italia è le 06:00 UTC in inverno (CET, UTC+1)
-    # e le 07:00 UTC in estate (CEST, UTC+2). Con questa riga si va sull'orario invernale;
-    # in estate il post uscirà un'ora prima del previsto (le 07:00 invece delle 08:00).
-    - cron: "0 6 * * *"
+   # Esegue il workflow due volte al giorno:
+  # 06:00 UTC -> 07:00/08:00 ora italiana
+  # 16:00 UTC -> 17:00/18:00 ora italiana
+  - cron: "0 6,16 * * *"
   workflow_dispatch: {}  # permette di lanciarlo manualmente da GitHub per fare test
 
 permissions:
