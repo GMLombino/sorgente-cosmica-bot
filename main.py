@@ -7,7 +7,7 @@ import os
 import sys
 
 import config
-from lib import background, composer, gemini_client, github_storage, instagram_api
+from lib import background, gemini_client, github_storage, image_composer, instagram_api
 
 
 def load_history() -> list[dict]:
@@ -75,7 +75,7 @@ def run() -> None:
 
     # 4. Composizione dell'immagine finale con il testo
     print("[main] Composizione immagine in corso...")
-    final_image_bytes = composer.create_post_image(
+    final_image_bytes = image_composer.create_post_image(
         background_bytes=background_bytes,
         phrase=content["frase_immagine"],
         signature=config.SIGNATURE_TEXT,
