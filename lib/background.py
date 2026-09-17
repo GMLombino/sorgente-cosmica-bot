@@ -1,6 +1,6 @@
 """
 Generazione dello sfondo in locale con Pillow: nessuna chiamata di rete,
-istantanea e gratuita. Blu profondo con un accenno di luminosità e stelle.
+istantanea e gratuita. Supporta colori dinamici con sfumature, stelle e nebulose coordinate.
 """
 import io
 import math
@@ -15,7 +15,7 @@ def _hex_to_rgb(value: str) -> tuple:
 
 
 def _vertical_gradient(width: int, height: int, top_rgb: tuple, bottom_rgb: tuple) -> Image.Image:
-    """Sfumatura verticale morbida tra due tonalità di blu."""
+    """Sfumatura verticale morbida tra due tonalità del colore scelto."""
     gradient = Image.new("RGB", (1, height))
     draw = ImageDraw.Draw(gradient)
     for y in range(height):
@@ -71,18 +71,16 @@ def _add_stars(image: Image.Image, count: int, seed: int) -> Image.Image:
     return image
 
 
-def _add_nebula(image: Image.Image, seed: int) -> Image.Image:
-    """Accenno di nebulosa: due o tre macchie molto diffuse e poco visibili."""
+def _add_nebula(image: Image.Image, base_rgb: tuple, seed: int) -> Image.Image:
+    """Accenno di nebulosa: macchie diffuse con tonalità adattate al colore base."""
     rng = random.Random(seed + 1)
     width, height = image.size
     nebula = Image.new("RGBA", image.size, (0, 0, 0, 0))
-    draw = ImageDraw.Draw(nebula)
 
-    palette = [
-        (40, 60, 130),
-        (70, 50, 120),
-        (30, 80, 130),
-    ]
+    # Genera toni di nebulosa leggermente più luminosi e saturi rispetto alla base
+    nebula_color_1 = tuple(min(255, c + 40) for c in base_rgb)
+    nebula_color_2 = tuple(min(255, c + 60) for c in base_rgb)
+    palette = [nebula_color_1, nebula_color_2]
 
     for _ in range(rng.randint(2, 3)):
         cx = rng.randint(0, width)
@@ -93,7 +91,7 @@ def _add_nebula(image: Image.Image, seed: int) -> Image.Image:
         color = rng.choice(palette)
 
         patch = Image.new("RGBA", (rx * 2, ry * 2), (0, 0, 0, 0))
-        ImageDraw.Draw(patch).ellipse([0, 0, rx * 2, ry * 2], fill=color + (46,))
+        ImageDraw.Draw(patch).ellipse([0, 0, rx * 2, ry * 2], fill=color + (35,))
         patch = patch.rotate(math.degrees(angle), expand=True)
         nebula.alpha_composite(patch, (cx - patch.width // 2, cy - patch.height // 2))
 
@@ -114,26 +112,30 @@ def generate_background(width: int, height: int, base_hex: str, seed: int = None
 
     base_rgb = _hex_to_rgb(base_hex)
     # tonalità leggermente più chiara in alto, più scura in basso
-    top_rgb = tuple(min(255, c + rng.randint(8, 20)) for c in base_rgb)
-    bottom_rgb = tuple(max(0, c - rng.randint(2, 6)) for c in base_rgb)
+    top_rgb = tuple(min(255, c + rng.randint(10, 25)) for c in base_rgb)
+    bottom_rgb = tuple(max(0, c - rng.randint(3, 8)) for c in base_rgb)
 
     image = _vertical_gradient(width, height, top_rgb, bottom_rgb)
-    image = _add_nebula(image, seed)
+    image = _add_nebula(image, base_rgb, seed)
 
-    # un alone luminoso principale, posizionato in alto in modo variabile
+    # un alone luminoso principale, in tinta o leggermente dorato/chiaro
     glow_x = rng.randint(int(width * 0.2), int(width * 0.8))
     glow_y = rng.randint(int(height * 0.08), int(height * 0.28))
-    image = _add_glow(image, (glow_x, glow_y), int(width * 0.45), (150, 180, 255), 30)
+    glow_color = tuple(min(255, c + 80) for c in base_rgb)
+    image = _add_glow(image, (glow_x, glow_y), int(width * 0.45), glow_color, 25)
 
     image = _add_stars(image, count=rng.randint(70, 110), seed=seed)
 
-    # vignettatura leggera: scurisce i bordi e porta l'occhio verso il centro
+    # vignettatura leggera: scurisce i bordi usando il colore base scurito
     vignette = Image.new("L", (width, height), 0)
     ImageDraw.Draw(vignette).ellipse(
         [-width * 0.2, -height * 0.15, width * 1.2, height * 1.15], fill=255
     )
     vignette = vignette.filter(ImageFilter.GaussianBlur(width // 8))
-    dark = Image.new("RGB", (width, height), (4, 6, 18))
+    
+    # Colore scuro bordo dinamico basato sul tema scelto
+    dark_border = tuple(max(0, c - 10) for c in base_rgb)
+    dark = Image.new("RGB", (width, height), dark_border)
     image = Image.composite(image.convert("RGB"), dark, vignette)
 
     out = io.BytesIO()
