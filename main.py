@@ -10,11 +10,12 @@ Flusso:
 6. Aggiorna lo storico (in locale e su GitHub)
 """
 import sys
+import random
 from datetime import date
 
 import config
 from lib import history, phrase_generator, image_generator, background, compose, publisher
-
+_LAST_USED_COLOR = None
 
 def get_unique_phrase() -> dict:
     """Genera una frase, ritentando se per caso coincide con una già usata."""
@@ -34,9 +35,10 @@ def get_unique_phrase() -> dict:
 def get_background() -> bytes:
     """
     Genera lo sfondo secondo la sorgente scelta in config.
-    Se la generazione via IA fallisce, ripiega sul locale invece di
-    saltare la pubblicazione del giorno.
+    Se in locale, sceglie un colore casuale dalla palette evitando di ripetere l'ultimo.
     """
+    global _LAST_USED_COLOR
+
     if config.BACKGROUND_SOURCE == "ia":
         try:
             data = image_generator.generate_background(
@@ -48,10 +50,15 @@ def get_background() -> bytes:
         except Exception as exc:  # noqa: BLE001
             print(f"[main] Sfondo IA non disponibile ({exc}); uso lo sfondo locale.")
 
+    # Filtra la palette escludendo l'ultimo colore utilizzato
+    available_colors = [c for c in config.BACKGROUND_PALETTE if c != _LAST_USED_COLOR]
+    selected_color = random.choice(available_colors)
+    _LAST_USED_COLOR = selected_color
+
     data = background.generate_background(
-        config.IMAGE_WIDTH, config.IMAGE_HEIGHT, config.BACKGROUND_COLOR_HEX
+        config.IMAGE_WIDTH, config.IMAGE_HEIGHT, selected_color
     )
-    print("[main] Sfondo generato in locale.")
+    print(f"[main] Sfondo generato in locale con colore: {selected_color}")
     return data
 
 
