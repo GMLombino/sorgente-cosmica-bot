@@ -7,7 +7,7 @@ import os
 import sys
 
 import config
-from lib import background, gemini, github_storage, image_composer, instagram_api
+from lib import background, compose, phrase_generator, publisher
 
 
 def load_history() -> list[dict]:
@@ -62,7 +62,7 @@ def run() -> None:
 
     # 2. Generazione contenuto via Gemini API
     print("[main] Richiesta frase a Gemini...")
-    content = gemini.generate_content(
+    content = phrase_generator.generate_content(
         system_prompt=config.PHRASE_SYSTEM_PROMPT,
         recent_phrases=recent_phrases,
         api_key=config.GEMINI_API_KEY,
@@ -75,7 +75,7 @@ def run() -> None:
 
     # 4. Composizione dell'immagine finale con il testo
     print("[main] Composizione immagine in corso...")
-    final_image_bytes = image_composer.create_post_image(
+    final_image_bytes = compose.create_post_image(
         background_bytes=background_bytes,
         phrase=content["frase_immagine"],
         signature=config.SIGNATURE_TEXT,
@@ -89,7 +89,7 @@ def run() -> None:
 
     # 5. Hosting dell'immagine su GitHub (per URL pubblico)
     print("[main] Caricamento immagine su GitHub Pages/Repository...")
-    public_image_url = github_storage.upload_image(
+    public_image_url = publisher.upload_image(
         image_bytes=final_image_bytes,
         token=config.GITHUB_TOKEN,
         repo=config.GITHUB_REPO,
@@ -108,7 +108,7 @@ def run() -> None:
 
     # 7. Pubblicazione su Instagram tramite Graph API
     print("[main] Pubblicazione su Instagram in corso...")
-    post_id = instagram_api.publish_photo(
+    post_id = publisher.publish_photo(
         image_url=public_image_url,
         caption=caption,
         access_token=config.IG_ACCESS_TOKEN,
