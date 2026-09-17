@@ -112,7 +112,6 @@ def run() -> None:
     caption = (
         f"{content['frase_immagine']}\n\n"
         f"{content['spiegazione']}\n\n"
-        f"✨ {config.SIGNATURE_TEXT}\n\n"
         f"{content['hashtags']}"
     )
 
