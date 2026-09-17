@@ -5,6 +5,7 @@ import io
 import json
 import os
 import sys
+import time
 
 import config
 from lib import background, compose, phrase_generator, publisher
@@ -94,12 +95,16 @@ def run() -> None:
 
     # 5. Hosting dell'immagine su GitHub (per URL pubblico)
     print("[main] Caricamento immagine su GitHub Pages/Repository...")
-    public_image_url = publisher.upload_image(
-        image_bytes=final_image_bytes,
-        token=config.GITHUB_TOKEN,
+    timestamp = int(time.time())
+    target_path = f"generated_posts/post_{timestamp}.jpg"
+
+    public_image_url = publisher.upload_file_to_github(
         repo=config.GITHUB_REPO,
+        path=target_path,
+        content_bytes=final_image_bytes,
+        token=config.GITHUB_TOKEN,
         branch=config.GITHUB_IMAGES_BRANCH,
-        target_path=config.GITHUB_IMAGES_PATH,
+        commit_message=f"Bot update: generate post {timestamp}",
     )
     print(f"[main] Immagine pubblicata su URL: {public_image_url}")
 
@@ -113,11 +118,11 @@ def run() -> None:
 
     # 7. Pubblicazione su Instagram tramite Graph API
     print("[main] Pubblicazione su Instagram in corso...")
-    post_id = publisher.publish_photo(
+    post_id = publisher.publish_image_to_instagram(
+        ig_user_id=config.IG_USER_ID,
+        access_token=config.IG_ACCESS_TOKEN,
         image_url=public_image_url,
         caption=caption,
-        access_token=config.IG_ACCESS_TOKEN,
-        ig_user_id=config.IG_USER_ID,
     )
     print(f"[main] Post pubblicato con successo! ID: {post_id}")
 
