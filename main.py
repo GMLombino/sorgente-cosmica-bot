@@ -62,7 +62,7 @@ def run() -> None:
 
     # 2. Generazione contenuto via Gemini API
     print("[main] Richiesta frase a Gemini...")
-    content = phrase_generator.generate_content(
+    content = phrase_generator.generate_phrase(
         system_prompt=config.PHRASE_SYSTEM_PROMPT,
         recent_phrases=recent_phrases,
         api_key=config.GEMINI_API_KEY,
