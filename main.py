@@ -57,7 +57,7 @@ def get_background() -> bytes:
 
 def build_caption(frase: str, spiegazione: str, hashtags: str) -> str:
     """Compone la caption finale per Instagram."""
-    return f"{frase}\n\n✨ {spiegazione}\n\n.\n.\n{hashtags}"
+    return f"✨ {spiegazione}\n\n.\n.\n{hashtags}"
 
 
 def run() -> None:
