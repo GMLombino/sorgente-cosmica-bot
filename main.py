@@ -1,120 +1,139 @@
 """
-Script principale: da lanciare una volta al giorno (via GitHub Actions o cron).
-
-Flusso:
-1. Genera frase, spiegazione, hashtag e tema (evitando ripetizioni rispetto allo storico)
-2. Genera un'immagine di sfondo
-3. Sovrappone la sola frase_immagine + firma con Pillow
-4. Carica l'immagine finale su GitHub (per avere un URL pubblico)
-5. Pubblica su Instagram con la caption strutturata
-6. Aggiorna lo storico (in locale e su GitHub)
+Modulo principale del bot Instagram per la generazione e pubblicazione di post spirituali.
 """
+import io
+import json
+import os
 import sys
-import random
-from datetime import date
 
 import config
-from lib import history, phrase_generator, image_generator, background, compose, publisher
-_LAST_USED_COLOR = None
+from lib import background, composer, gemini_client, github_storage, instagram_api
 
-def get_unique_phrase() -> dict:
-    """Genera una frase, ritentando se per caso coincide con una già usata."""
-    recent = history.recent_phrases(config.HISTORY_FILE, config.MAX_HISTORY_PHRASES_IN_PROMPT)
 
-    for _ in range(3):
-        result = phrase_generator.generate_phrase(
-            config.PHRASE_SYSTEM_PROMPT, recent, config.GEMINI_API_KEY
-        )
-        if not history.is_duplicate(config.HISTORY_FILE, result["frase_immagine"]):
-            return result
-        print(f"[main] Frase duplicata generata, riprovo: {result['frase_immagine']!r}")
+def load_history() -> list[dict]:
+    """Carica lo storico delle frasi e dei post precedenti."""
+    if os.path.exists(config.HISTORY_FILE):
+        try:
+            with open(config.HISTORY_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as exc:  # noqa: BLE001
+            print(f"[main] Errore nel caricamento di {config.HISTORY_FILE}: {exc}")
+    return []
 
-    return result
+
+def save_history(history: list[dict]) -> None:
+    """Salva lo storico aggiornato nel file JSON."""
+    try:
+        with open(config.HISTORY_FILE, "w", encoding="utf-8") as f:
+            json.dump(history, f, ensure_ascii=False, indent=2)
+        print(f"[main] Storico aggiornato in {config.HISTORY_FILE}.")
+    except Exception as exc:  # noqa: BLE001
+        print(f"[main] Errore nel salvataggio di {config.HISTORY_FILE}: {exc}")
 
 
 def get_background() -> bytes:
     """
-    Genera lo sfondo secondo la sorgente scelta in config.
-    Se in locale, sceglie un colore casuale dalla palette evitando di ripetere l'ultimo.
+    Pesca uno sfondo casuale dalla cartella assets/backgrounds.
+    In caso di cartella vuota o inesistente, usa il colore di fallback specificato in config.
     """
-    global _LAST_USED_COLOR
-
-    if config.BACKGROUND_SOURCE == "ia":
-        try:
-            data = image_generator.generate_background(
-                config.IMAGE_PROMPT_TEMPLATE, config.IMAGE_WIDTH, config.IMAGE_HEIGHT,
-                config.POLLINATIONS_API_KEY,
-            )
-            print("[main] Sfondo generato via IA.")
-            return data
-        except Exception as exc:  # noqa: BLE001
-            print(f"[main] Sfondo IA non disponibile ({exc}); uso lo sfondo locale.")
-
-    # Filtra la palette escludendo l'ultimo colore utilizzato
-    available_colors = [c for c in config.BACKGROUND_PALETTE if c != _LAST_USED_COLOR]
-    selected_color = random.choice(available_colors)
-    _LAST_USED_COLOR = selected_color
-
-    data = background.generate_background(
-        config.IMAGE_WIDTH, config.IMAGE_HEIGHT, selected_color
+    img = background.get_random_background(
+        config.BACKGROUNDS_DIR,
+        config.BACKGROUND_COLOR_HEX,
+        config.IMAGE_WIDTH,
+        config.IMAGE_HEIGHT,
     )
-    print(f"[main] Sfondo generato in locale con colore: {selected_color}")
-    return data
 
-
-def build_caption(spiegazione: str, hashtags: str) -> str:
-    """Compone la caption finale per Instagram senza ripetere la frase dell'immagine."""
-    return f"✨ {spiegazione}\n\n.\n.\n{hashtags}"
+    out = io.BytesIO()
+    img.save(out, format="JPEG", quality=95)
+    return out.getvalue()
 
 
 def run() -> None:
-    print("[main] Avvio generazione contenuto del giorno...")
+    """Esegue il flusso completo del bot: generazione, composizione e pubblicazione."""
+    print("=== AVVIO BOT INSTAGRAM ===")
 
-    fraseData = get_unique_phrase()
-    frase = fraseData["frase_immagine"]
-    spiegazione = fraseData["spiegazione"]
-    hashtags = fraseData["hashtags"]
-    tema = fraseData["tema"]
+    # 1. Caricamento storico
+    history = load_history()
+    recent_phrases = [
+        item["frase_immagine"]
+        for item in history[-config.MAX_HISTORY_PHRASES_IN_PROMPT:]
+        if "frase_immagine" in item
+    ]
 
-    print(f"[main] Frase generata per l'immagine: {frase}")
-
-    sfondo = get_background()
-
-    final_image = compose.compose_image(
-        sfondo, frase, config.SIGNATURE_TEXT,
-        config.IMAGE_WIDTH, config.IMAGE_HEIGHT,
-        config.FONT_BODY_PATH, config.FONT_BODY_VARIATION,
-        config.FONT_SIGNATURE_PATH, config.FONT_SIGNATURE_VARIATION,
-        config.GOLD_HEX, config.WHITE_HEX,
+    # 2. Generazione contenuto via Gemini API
+    print("[main] Richiesta frase a Gemini...")
+    content = gemini_client.generate_content(
+        system_prompt=config.PHRASE_SYSTEM_PROMPT,
+        recent_phrases=recent_phrases,
+        api_key=config.GEMINI_API_KEY,
     )
-    print("[main] Immagine finale composta.")
+    print(f"[main] Tema scelto: {content.get('tema', 'Non specificato')}")
+    print(f"[main] Frase: {content['frase_immagine']}")
 
-    today_str = date.today().isoformat()
-    image_path = f"{config.GITHUB_IMAGES_PATH}/{today_str}.jpg"
-    image_url = publisher.upload_file_to_github(
-        config.GITHUB_REPO, image_path, final_image, config.GITHUB_TOKEN,
-        config.GITHUB_IMAGES_BRANCH, f"Immagine del {today_str}",
+    # 3. Caricamento sfondo dalla cartella
+    background_bytes = get_background()
+
+    # 4. Composizione dell'immagine finale con il testo
+    print("[main] Composizione immagine in corso...")
+    final_image_bytes = composer.create_post_image(
+        background_bytes=background_bytes,
+        phrase=content["frase_immagine"],
+        signature=config.SIGNATURE_TEXT,
+        width=config.IMAGE_WIDTH,
+        height=config.IMAGE_HEIGHT,
+        body_font_path=config.FONT_BODY_PATH,
+        signature_font_path=config.FONT_SIGNATURE_PATH,
+        gold_hex=config.GOLD_HEX,
+        white_hex=config.WHITE_HEX,
     )
-    print(f"[main] Immagine caricata: {image_url}")
 
-    caption = build_caption(spiegazione, hashtags)
-    media_id = publisher.publish_image_to_instagram(
-        config.IG_USER_ID, config.IG_ACCESS_TOKEN, image_url, caption,
+    # 5. Hosting dell'immagine su GitHub (per URL pubblico)
+    print("[main] Caricamento immagine su GitHub Pages/Repository...")
+    public_image_url = github_storage.upload_image(
+        image_bytes=final_image_bytes,
+        token=config.GITHUB_TOKEN,
+        repo=config.GITHUB_REPO,
+        branch=config.GITHUB_IMAGES_BRANCH,
+        target_path=config.GITHUB_IMAGES_PATH,
     )
-    print(f"[main] Pubblicato su Instagram, media id: {media_id}")
+    print(f"[main] Immagine pubblicata su URL: {public_image_url}")
 
-    history.add_entry(config.HISTORY_FILE, frase, tema)
-    with open(config.HISTORY_FILE, "rb") as f:
-        publisher.upload_file_to_github(
-            config.GITHUB_REPO, config.HISTORY_FILE, f.read(), config.GITHUB_TOKEN,
-            config.GITHUB_IMAGES_BRANCH, f"Aggiorna storico - {today_str}",
-        )
-    print("[main] Storico aggiornato su GitHub.")
+    # 6. Preparazione della caption per Instagram
+    caption = (
+        f"{content['frase_immagine']}\n\n"
+        f"{content['spiegazione']}\n\n"
+        f"✨ {config.SIGNATURE_TEXT}\n\n"
+        f"{content['hashtags']}"
+    )
+
+    # 7. Pubblicazione su Instagram tramite Graph API
+    print("[main] Pubblicazione su Instagram in corso...")
+    post_id = instagram_api.publish_photo(
+        image_url=public_image_url,
+        caption=caption,
+        access_token=config.IG_ACCESS_TOKEN,
+        ig_user_id=config.IG_USER_ID,
+    )
+    print(f"[main] Post pubblicato con successo! ID: {post_id}")
+
+    # 8. Aggiornamento e salvataggio dello storico
+    new_entry = {
+        "post_id": post_id,
+        "image_url": public_image_url,
+        "frase_immagine": content["frase_immagine"],
+        "spiegazione": content["spiegazione"],
+        "hashtags": content["hashtags"],
+        "tema": content.get("tema", ""),
+    }
+    history.append(new_entry)
+    save_history(history)
+
+    print("=== ESECUZIONE COMPLETATA CON SUCCESSO ===")
 
 
 if __name__ == "__main__":
     try:
         run()
-    except Exception as exc:  # noqa: BLE001
-        print(f"[main] ERRORE FATALE: {exc}", file=sys.stderr)
+    except Exception as err:
+        print(f"[main] ERRORE FATALE: {err}", file=sys.stderr)
         sys.exit(1)
