@@ -40,7 +40,7 @@ BACKGROUND_PALETTE = [
 GOLD_HEX = "#D4AF37"
 WHITE_HEX = "#FFFFFF"
 
-FONT_BODY_PATH = "assets/fonts/Raleway-Regular.ttf"
+FONT_BODY_PATH = "assets/fonts/Raleway-Bold.ttf"
 FONT_BODY_VARIATION = "Regular"
 FONT_SIGNATURE_PATH = "assets/fonts/Quicksand-Light.ttf"
 FONT_SIGNATURE_VARIATION = "Light"
