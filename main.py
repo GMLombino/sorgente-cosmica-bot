@@ -75,14 +75,19 @@ def run() -> None:
 
     # 4. Composizione dell'immagine finale con il testo
     print("[main] Composizione immagine in corso...")
-    final_image_bytes = compose.create_post_image(
+    font_body_var = getattr(config, "FONT_BODY_VARIATION", "Regular")
+    font_sig_var = getattr(config, "FONT_SIGNATURE_VARIATION", "Regular")
+
+    final_image_bytes = compose.compose_image(
         background_bytes=background_bytes,
         phrase=content["frase_immagine"],
         signature=config.SIGNATURE_TEXT,
         width=config.IMAGE_WIDTH,
         height=config.IMAGE_HEIGHT,
-        body_font_path=config.FONT_BODY_PATH,
-        signature_font_path=config.FONT_SIGNATURE_PATH,
+        font_body_path=config.FONT_BODY_PATH,
+        font_body_variation=font_body_var,
+        font_signature_path=config.FONT_SIGNATURE_PATH,
+        font_signature_variation=font_sig_var,
         gold_hex=config.GOLD_HEX,
         white_hex=config.WHITE_HEX,
     )
