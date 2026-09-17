@@ -46,11 +46,27 @@ def upload_file_to_github(repo: str, path: str, content_bytes: bytes, token: str
     return f"https://raw.githubusercontent.com/{repo}/{branch}/{path}"
 
 
-def _graph_request(method: str, path: str, **kwargs) -> dict:
-    resp = requests.request(method, f"{GRAPH_API}/{path}", timeout=60, **kwargs)
-    if resp.status_code >= 400:
-        raise RuntimeError(f"Errore Graph API ({resp.status_code}): {resp.text}")
-    return resp.json()
+def _graph_request(method: str, path: str, max_retries: int = 3, **kwargs) -> dict:
+    """Esegue una richiesta alla Graph API di Meta con retry automatico per errori temporanei."""
+    for attempt in range(1, max_retries + 1):
+        try:
+            resp = requests.request(method, f"{GRAPH_API}/{path}", timeout=60, **kwargs)
+            if resp.status_code >= 400:
+                # Se è un errore 5xx o 429, ritentiamo
+                if resp.status_code in (429, 500, 502, 503, 504) and attempt < max_retries:
+                    wait_time = attempt * 3
+                    print(f"[publisher] Meta Graph API temporaneamente non disponibile ({resp.status_code}). Riprovo tra {wait_time}s...")
+                    time.sleep(wait_time)
+                    continue
+                raise RuntimeError(f"Errore Graph API ({resp.status_code}): {resp.text}")
+            return resp.json()
+        except (requests.exceptions.RequestException, RuntimeError) as err:
+            if attempt < max_retries and not isinstance(err, RuntimeError):
+                wait_time = attempt * 3
+                print(f"[publisher] Errore di connessione verso Meta. Riprovo tra {wait_time}s...")
+                time.sleep(wait_time)
+            else:
+                raise err
 
 
 def publish_image_to_instagram(ig_user_id: str, access_token: str, image_url: str,
@@ -59,7 +75,6 @@ def publish_image_to_instagram(ig_user_id: str, access_token: str, image_url: st
     Crea il container media, attende che sia pronto, poi lo pubblica.
     Ritorna l'ID del media pubblicato.
     """
-    # Stampa di debug temporanea e pulizia stringhe
     clean_token = access_token.strip() if access_token else ""
     clean_user_id = ig_user_id.strip() if ig_user_id else ""
 
@@ -77,8 +92,11 @@ def publish_image_to_instagram(ig_user_id: str, access_token: str, image_url: st
     )
     container_id = container["id"]
 
+    # Piccola pausa iniziale per permettere a Meta di agganciare l'URL prima del polling
+    time.sleep(3)
+
     # Attende che Instagram finisca di scaricare/processare l'immagine
-    waited = 0
+    waited = 3
     while waited < max_wait_seconds:
         status = _graph_request(
             "GET",
