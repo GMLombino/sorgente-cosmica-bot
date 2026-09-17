@@ -2,8 +2,10 @@
 Generazione della frase quotidiana tramite l'API Gemini
 """
 import json
+import time
 from google import genai
 from google.genai import types
+from google.genai.errors import APIError
 from pydantic import BaseModel
 
 
@@ -33,16 +35,26 @@ def generate_phrase(system_prompt: str, recent_phrases: list[str], api_key: str)
         automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
     )
 
-    response = client.models.generate_content(
-        model="gemini-3.6-flash",
-        contents=user_prompt,
-        config=config,
-    )
-
-    data = json.loads(response.text)
-    return {
-        "frase_immagine": data["frase_immagine"],
-        "spiegazione": data["spiegazione"],
-        "hashtags": data["hashtags"],
-        "tema": data["tema"],
-    }
+    # Gestione del retry automatico in caso di errore 503 o picchi di traffico
+    max_retries = 3
+    for attempt in range(1, max_retries + 1):
+        try:
+            response = client.models.generate_content(
+                model="gemini-3.6-flash",
+                contents=user_prompt,
+                config=config,
+            )
+            data = json.loads(response.text)
+            return {
+                "frase_immagine": data["frase_immagine"],
+                "spiegazione": data["spiegazione"],
+                "hashtags": data["hashtags"],
+                "tema": data["tema"],
+            }
+        except APIError as err:
+            if err.code in (503, 429) and attempt < max_retries:
+                wait_time = attempt * 5  # Attesa incrementale: 5s, 10s...
+                print(f"[phrase_generator] Errore temporaneo Gemini ({err.code}). Riprovo tra {wait_time}s (tentativo {attempt}/{max_retries})...")
+                time.sleep(wait_time)
+            else:
+                raise err
