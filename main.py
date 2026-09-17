@@ -55,8 +55,8 @@ def get_background() -> bytes:
     return data
 
 
-def build_caption(frase: str, spiegazione: str, hashtags: str) -> str:
-    """Compone la caption finale per Instagram."""
+def build_caption(spiegazione: str, hashtags: str) -> str:
+    """Compone la caption finale per Instagram senza ripetere la frase dell'immagine."""
     return f"✨ {spiegazione}\n\n.\n.\n{hashtags}"
 
 
@@ -90,7 +90,7 @@ def run() -> None:
     )
     print(f"[main] Immagine caricata: {image_url}")
 
-    caption = build_caption(frase, spiegazione, hashtags)
+    caption = build_caption(spiegazione, hashtags)
     media_id = publisher.publish_image_to_instagram(
         config.IG_USER_ID, config.IG_ACCESS_TOKEN, image_url, caption,
     )
