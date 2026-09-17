@@ -25,6 +25,10 @@ GITHUB_IMAGES_PATH = "published"
 IMAGE_WIDTH = 1080
 IMAGE_HEIGHT = 1350
 
+# Sfondi da cartella locale
+BACKGROUNDS_DIR = "assets/backgrounds"
+BACKGROUND_COLOR_HEX = "#0A0F2C"  # Colore di riserva se la cartella è vuota
+
 # Palette di sfondi eleganti e scuri (evita la ripetizione del colore precedente)
 BACKGROUND_PALETTE = [
     "#0A0F2C",  # Blu Notte profondo (attuale)
