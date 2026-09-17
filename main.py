@@ -7,7 +7,7 @@ import os
 import sys
 
 import config
-from lib import background, gemini_client, github_storage, image_composer, instagram_api
+from lib import background, gemini, github_storage, image_composer, instagram_api
 
 
 def load_history() -> list[dict]:
@@ -62,7 +62,7 @@ def run() -> None:
 
     # 2. Generazione contenuto via Gemini API
     print("[main] Richiesta frase a Gemini...")
-    content = gemini_client.generate_content(
+    content = gemini.generate_content(
         system_prompt=config.PHRASE_SYSTEM_PROMPT,
         recent_phrases=recent_phrases,
         api_key=config.GEMINI_API_KEY,
