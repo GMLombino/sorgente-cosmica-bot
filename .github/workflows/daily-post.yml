@@ -5,7 +5,7 @@ on:
    # Esegue il workflow due volte al giorno:
   # 06:00 UTC -> 07:00/08:00 ora italiana
   # 16:00 UTC -> 17:00/18:00 ora italiana
-  - cron: "0 6,16 * * *"
+  - cron: "17 6,15 * * *"
   workflow_dispatch: {}  # permette di lanciarlo manualmente da GitHub per fare test
 
 permissions:
