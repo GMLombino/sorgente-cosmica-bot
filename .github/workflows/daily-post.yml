@@ -39,8 +39,8 @@ jobs:
 
       - name: Salva lo storico dei post generati
         run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add published/
-          git commit -m "Auto-update published history [skip ci]" || exit 0
-          git push
+         git config --local user.email "github-actions[bot]@users.noreply.github.com"
+         git config --local user.name "github-actions[bot]"
+         git add published/*.json
+         git commit -m "Auto-update published text history [skip ci]" || exit 0
+         git push
