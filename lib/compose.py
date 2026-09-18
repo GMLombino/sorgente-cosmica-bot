@@ -16,7 +16,7 @@ def _load_variable_font(path: str, size: int, variation_name: str) -> ImageFont.
 
 
 def _wrap_text(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.FreeTypeFont,
-                max_width: int) -> list:
+               max_width: int) -> list:
     words = text.split()
     lines = []
     current = ""
@@ -34,7 +34,7 @@ def _wrap_text(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.FreeTypeFon
 
 
 def _fit_font_and_wrap(draw, text, font_path, variation, max_width, max_height,
-                        start_size=64, min_size=28):
+                       start_size=64, min_size=28):
     """Riduce la dimensione del font finché il testo (a capo) non entra nell'area disponibile."""
     size = start_size
     while size >= min_size:
@@ -57,13 +57,13 @@ def compose_image(background_bytes: bytes, phrase: str, signature: str,
     base = Image.open(io.BytesIO(background_bytes)).convert("RGB")
     base = base.resize((width, height))
 
-    # Overlay scuro semi-trasparente per garantire leggibilità del testo
-    # sopra qualunque sfondo generato dall'IA.
+    # Overlay scuro semi-trasparente potenziato (da 90 a 130 d'opacità)
+    # per garantire massima leggibilità anche su cieli molto chiari.
     overlay = Image.new("RGBA", base.size, (0, 0, 0, 0))
     overlay_draw = ImageDraw.Draw(overlay)
     gradient_top = int(height * 0.30)
     gradient_bottom = int(height * 0.78)
-    overlay_draw.rectangle([0, gradient_top, width, gradient_bottom], fill=(10, 15, 44, 90))
+    overlay_draw.rectangle([0, gradient_top, width, gradient_bottom], fill=(10, 15, 44, 130))
     overlay = overlay.filter(ImageFilter.GaussianBlur(40))
 
     base = base.convert("RGBA")
@@ -88,15 +88,30 @@ def compose_image(background_bytes: bytes, phrase: str, signature: str,
         bbox = draw.textbbox((0, 0), line, font=font)
         line_width = bbox[2] - bbox[0]
         x = (width - line_width) / 2
-        draw.text((x, y), line, font=font, fill=gold_hex)
+        # Aggiunto stroke_width=2 e stroke_fill scuro per contornare le lettere
+        draw.text(
+            (x, y), 
+            line, 
+            font=font, 
+            fill=gold_hex, 
+            stroke_width=2, 
+            stroke_fill=(15, 10, 5)
+        )
         y += line_height
 
-    # Firma fissa, sempre in basso centrata
+    # Firma fissa, sempre in basso centrata (aggiunto piccolo stroke anche alla firma per uniformità)
     sig_font = _load_variable_font(font_signature_path, 34, font_signature_variation)
     sig_bbox = draw.textbbox((0, 0), signature, font=sig_font)
     sig_width = sig_bbox[2] - sig_bbox[0]
     sig_y = height * 0.90
-    draw.text(((width - sig_width) / 2, sig_y), signature, font=sig_font, fill=white_hex)
+    draw.text(
+        ((width - sig_width) / 2, sig_y), 
+        signature, 
+        font=sig_font, 
+        fill=white_hex,
+        stroke_width=1,
+        stroke_fill=(15, 10, 5)
+    )
 
     out = io.BytesIO()
     base.convert("RGB").save(out, format="JPEG", quality=92)
