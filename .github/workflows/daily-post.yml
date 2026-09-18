@@ -2,10 +2,10 @@ name: Pubblicazione giornaliera Instagram
 
 on:
   schedule:
-   # Esegue il workflow due volte al giorno:
-  # 06:00 UTC -> 07:00/08:00 ora italiana
-  # 16:00 UTC -> 17:00/18:00 ora italiana
-  - cron: "17 6,15 * * *"
+    # Esegue il workflow due volte al giorno:
+    # 06:00 UTC -> 07:00/08:00 ora italiana
+    # 15:17 UTC -> 16:17/17:17 ora italiana
+    - cron: "17 6,15 * * *"
   workflow_dispatch: {}  # permette di lanciarlo manualmente da GitHub per fare test
 
 permissions:
@@ -36,3 +36,11 @@ jobs:
           GITHUB_REPO: ${{ github.repository }}
           GITHUB_IMAGES_BRANCH: ${{ github.ref_name }}
         run: python main.py
+
+      - name: Salva lo storico dei post generati
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add published/
+          git commit -m "Auto-update published history [skip ci]" || exit 0
+          git push
