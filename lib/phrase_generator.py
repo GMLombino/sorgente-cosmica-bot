@@ -35,8 +35,10 @@ def generate_phrase(system_prompt: str, recent_phrases: list[str], api_key: str)
         automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
     )
 
-    # Gestione del retry automatico in caso di errore 503 o picchi di traffico
-    max_retries = 3
+    # Tempi di attesa estesi per superare i picchi di traffico reali (in secondi)
+    retry_delays = [200, 450, 900, 1200]  # Totale attesa potenziale: ~4.5 minuti
+    max_retries = len(retry_delays) + 1
+
     for attempt in range(1, max_retries + 1):
         try:
             response = client.models.generate_content(
@@ -51,10 +53,18 @@ def generate_phrase(system_prompt: str, recent_phrases: list[str], api_key: str)
                 "hashtags": data["hashtags"],
                 "tema": data["tema"],
             }
-        except APIError as err:
-            if err.code in (503, 429) and attempt < max_retries:
-                wait_time = attempt * 5  # Attesa incrementale: 5s, 10s...
-                print(f"[phrase_generator] Errore temporaneo Gemini ({err.code}). Riprovo tra {wait_time}s (tentativo {attempt}/{max_retries})...")
+        except (APIError, Exception) as err:
+            is_transient = False
+            
+            # Controllo se è un errore di server o rate limit (503, 429, 500, 504)
+            if isinstance(err, APIError) and err.code in (503, 429, 500, 504):
+                is_transient = True
+            elif any(code in str(err) for code in ["503", "UNAVAILABLE", "429", "504"]):
+                is_transient = True
+
+            if is_transient and attempt < max_retries:
+                wait_time = retry_delays[attempt - 1]
+                print(f"[phrase_generator] Errore temporaneo Gemini ({err}). Server saturo, attesa di {wait_time}s (tentativo {attempt}/{max_retries})...")
                 time.sleep(wait_time)
             else:
                 raise err
