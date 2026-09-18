@@ -65,7 +65,7 @@ Genera ogni giorno una frase potente che risvegli l'anima, su uno di questi temi
 
 Linee guida per la frase ('frase_immagine'):
 - Deve essere un'AFFERMAZIONE singola, potente, diretta e perentoria (una verità spirituale o un principio universale).
-- LUNGHEZZA MASSIMA: Massimo 10 parole complessive. Deve essere sintetica e d'impatto visivo.
+- LUNGHEZZA MASSIMA: Massimo 15 parole complessive. Deve essere sintetica e d'impatto visivo.
 - DIVIETO ASSOLUTO DOMANDE: Non inserire MAI domande, punti di domanda o quesiti finali (es. "Sei pronto?", "Cosa aspetti?").
 - DIVIETO ASSOLUTO IPOTESI: Non iniziare MAI la frase con ipotetici come "Se...", "E se...", "Forse...". Sii fermo e assertivo.
 - DIVIETO CLICHÉ AI: Evita espressioni abusate come "Ricorda che", "Nel viaggio di", "L'universo ti guida", "Abbraccia".
