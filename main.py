@@ -110,7 +110,6 @@ def run() -> None:
 
     # 6. Preparazione della caption per Instagram
     caption = (
-        f"{content['frase_immagine']}\n\n"
         f"{content['spiegazione']}\n\n"
         f"{content['hashtags']}"
     )
