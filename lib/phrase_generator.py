@@ -36,7 +36,7 @@ def generate_phrase(system_prompt: str, recent_phrases: list[str], api_key: str)
     )
 
     # Tempi di attesa estesi per superare i picchi di traffico reali (in secondi)
-    retry_delays = [200, 450, 900, 1200]  # Totale attesa potenziale: ~4.5 minuti
+    retry_delays = [30, 60, 120, 180]  # Totale attesa potenziale: ~4.5 minuti
     max_retries = len(retry_delays) + 1
 
     for attempt in range(1, max_retries + 1):
