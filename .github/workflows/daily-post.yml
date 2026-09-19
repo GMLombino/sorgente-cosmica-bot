@@ -43,4 +43,5 @@ jobs:
           git config --local user.name "github-actions[bot]"
           git add history.json
           git commit -m "Auto-update published history [skip ci]" || exit 0
+          git pull --rebase origin main
           git push
