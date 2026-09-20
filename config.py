@@ -39,6 +39,7 @@ BACKGROUND_PALETTE = [
 
 GOLD_HEX = "#D4AF37"
 WHITE_HEX = "#FFFFFF"
+BLACK_HEX = "#000000"
 
 FONT_BODY_PATH = "assets/fonts/Raleway-Bold.ttf"
 FONT_BODY_VARIATION = "Regular"
