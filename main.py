@@ -60,12 +60,18 @@ def run() -> None:
         for item in history[-config.MAX_HISTORY_PHRASES_IN_PROMPT:]
         if "frase_immagine" in item
     ]
+    recent_topics = [
+        item["tema"]
+        for item in recent_history
+        if item.get("tema")
+    ]
 
     # 2. Generazione contenuto via Gemini API
     print("[main] Richiesta frase a Gemini...")
     content = phrase_generator.generate_phrase(
         system_prompt=config.PHRASE_SYSTEM_PROMPT,
         recent_phrases=recent_phrases,
+        recent_topics=recent_topics,  # <--- Passiamo anche i temi usati!
         api_key=config.GEMINI_API_KEY,
     )
     print(f"[main] Tema scelto: {content.get('tema', 'Non specificato')}")
