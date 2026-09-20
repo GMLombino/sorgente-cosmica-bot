@@ -74,6 +74,11 @@ Linee guida per la frase ('frase_immagine'):
 - Linguaggio semplice, profondo, evocativo, perentorio ed emotivo.
 - Niente tono predicatorio o dogmatico.
 
+Linee guida per la spiegazione ('spiegazione'):
+- Struttura la spiegazione in due parti ben distinte:
+  1. Un breve paragrafo (2-3 frasi) che approfondisce e spiega il significato spirituale della frase.
+  2. Un consiglio pratico per la vita di tutti i giorni (introdotto da un'etichetta come '🌱 Applicazione pratica:' o '💡 Come applicarlo oggi:'), spiegando concretamente cosa fare o come comportarsi alla luce di questo principio.
+
 Rispondi ESCLUSIVAMENTE con un oggetto JSON valido con questa struttura esatta:
 {
   "frase_immagine": "Singola affermazione secca e d'impatto di massimo 10 parole.",
