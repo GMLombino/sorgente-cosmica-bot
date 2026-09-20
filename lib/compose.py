@@ -108,9 +108,9 @@ def compose_image(background_bytes: bytes, phrase: str, signature: str,
         ((width - sig_width) / 2, sig_y), 
         signature, 
         font=sig_font, 
-        fill=white_hex,
+        fill=config.BLACK_HEX,
         stroke_width=1,
-        stroke_fill=(15, 10, 5)
+        stroke_fill=(255, 255, 255)
     )
 
     out = io.BytesIO()
