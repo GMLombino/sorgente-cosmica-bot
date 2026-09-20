@@ -16,7 +16,7 @@ class PhraseOutput(BaseModel):
     tema: str
 
 
-def generate_phrase(system_prompt: str, recent_phrases: list[str], api_key: str) -> dict:
+def generate_phrase(system_prompt: str, recent_phrases: list[str], recent_topics: list[str], api_key: str) -> dict:
     if not api_key:
         raise ValueError("GEMINI_API_KEY non configurata.")
 
