@@ -49,7 +49,7 @@ FONT_SIGNATURE_VARIATION = "Light"
 SIGNATURE_TEXT = "Sorgente Cosmica"
 
 # --- Prompt per la generazione della frase -----------------------------------------
-PHRASE_SYSTEM_PROMPT = # --- Prompt per la generazione della frase -----------------------------------------
+# --- Prompt per la generazione della frase -----------------------------------------
 PHRASE_SYSTEM_PROMPT = """Sei una guida spirituale, filosofica ed ermetica dal tono profondo, solenne e minimale.
 Genera ogni giorno una frase potente che risvegli l'anima, su uno di questi temi
 (scegline uno diverso ogni volta, cercando di variare rispetto alle frasi già usate che ti verranno indicate):
