@@ -110,7 +110,7 @@ def compose_image(background_bytes: bytes, phrase: str, signature: str,
         signature, 
         font=sig_font, 
         fill=config.BLACK_HEX,
-        stroke_width=1,
+        stroke_width=3,
         stroke_fill=(255, 255, 255)
     )
 
