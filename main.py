@@ -55,6 +55,8 @@ def run() -> None:
 
     # 1. Caricamento storico
     history = load_history()
+    recent_history = history[-config.MAX_HISTORY_PHRASES_IN_PROMPT:]
+    
     recent_phrases = [
         item["frase_immagine"]
         for item in history[-config.MAX_HISTORY_PHRASES_IN_PROMPT:]
