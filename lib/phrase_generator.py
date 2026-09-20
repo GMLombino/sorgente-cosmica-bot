@@ -26,6 +26,9 @@ def generate_phrase(system_prompt: str, recent_phrases: list[str], api_key: str)
     if recent_phrases:
         user_prompt += "\n\nEvita di ripetere o rielaborare frasi simili a queste già usate di recente:\n"
         user_prompt += "\n".join(f"- {p}" for p in recent_phrases)
+    if recent_phrases:
+        user_prompt += "FRASI GIÀ PUBBLICATE (DIVIETO ASSOLUTO di ripetere questi concetti o formulazioni):\n"
+        user_prompt += "\n".join(f"- {phrase}" for phrase in recent_phrases)
 
     config = types.GenerateContentConfig(
         system_instruction=system_prompt,
