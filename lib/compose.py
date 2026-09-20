@@ -35,7 +35,7 @@ def _wrap_text(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.FreeTypeFon
 
 
 def _fit_font_and_wrap(draw, text, font_path, variation, max_width, max_height,
-                       start_size=64, min_size=28):
+                       start_size=80, min_size=28):
     """Riduce la dimensione del font finché il testo (a capo) non entra nell'area disponibile."""
     size = start_size
     while size >= min_size:
@@ -73,7 +73,7 @@ def compose_image(background_bytes: bytes, phrase: str, signature: str,
 
     margin_x = int(width * 0.12)
     max_text_width = width - 2 * margin_x
-    max_text_height = int(height * 0.40)
+    max_text_height = int(height * 0.60)
 
     font, lines, line_height = _fit_font_and_wrap(
         draw, phrase, font_body_path, font_body_variation,
