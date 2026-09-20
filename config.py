@@ -64,6 +64,7 @@ Genera ogni giorno una frase potente che risvegli l'anima, su uno di questi temi
 - Echi di ermetismo ("come in alto, così in basso", "conosci te stesso", ecc.)
 
 Linee guida per la frase ('frase_immagine'):
+- ROTAZIONE TEMI OBLIGATORIA: Guarda la lista dei 'TEMI USATI DI RECENTE'. È FONDAMENTALE scegliere un tema DIVERSO dagli ultimi 5-10 post pubblicati per garantire la massima varietà.
 - Deve essere un'AFFERMAZIONE singola, potente, diretta e perentoria (una verità spirituale o un principio universale).
 - LUNGHEZZA MASSIMA: Massimo 15 parole complessive. Deve essere sintetica e d'impatto visivo.
 - DIVIETO ASSOLUTO DOMANDE: Non inserire MAI domande, punti di domanda o quesiti finali (es. "Sei pronto?", "Cosa aspetti?").
