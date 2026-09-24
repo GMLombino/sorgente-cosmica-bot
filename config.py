@@ -12,6 +12,9 @@ IG_USER_ID = os.environ.get("IG_USER_ID", "")
 # --- Google Gemini -----------------------------------------------------------------
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 
+# --- Groq --------------------------------------------------------------------------
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
 # --- Pollinations (usato solo opzionalmente per lo sfondo se BACKGROUND_SOURCE = "ia")
 POLLINATIONS_API_KEY = os.environ.get("POLLINATIONS_API_KEY", "")
 
