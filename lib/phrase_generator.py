@@ -1,21 +1,25 @@
 import json
 import config
-import google.generativeai as genai
+from google import genai
 from groq import Groq
 
 
 def _generate_with_gemini(system_prompt: str, user_prompt: str, api_key: str) -> dict:
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel("gemini-1.5-flash")
-    response = model.generate_content(f"{system_prompt}\n\n{user_prompt}")
+    """Tenta la generazione con il nuovo SDK ufficiale google-genai."""
+    client = genai.Client(api_key=api_key)
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=f"{system_prompt}\n\n{user_prompt}",
+    )
     raw_text = response.text.replace("```json", "").replace("```", "").strip()
     return json.loads(raw_text)
 
 
 def _generate_with_groq(system_prompt: str, user_prompt: str, api_key: str) -> dict:
+    """Fallback su Groq con modello Llama attivo e verificato."""
     client = Groq(api_key=api_key)
     response = client.chat.completions.create(
-        model="llama-3.1-8b-instant",  # Modello gratuito, veloce e preciso
+        model="llama-3.3-70b-versatile",  # In alternativa: llama3-8b-8192
         response_format={"type": "json_object"},
         messages=[
             {"role": "system", "content": system_prompt},
@@ -28,20 +32,21 @@ def _generate_with_groq(system_prompt: str, user_prompt: str, api_key: str) -> d
 
 
 def generate_phrase(system_prompt: str, recent_phrases: list, recent_topics: list, api_key: str) -> dict:
+    """Funzione principale con gestione del Fallback tra Gemini e Groq."""
     user_prompt = (
         f"FRASI USATE DI RECENTE (da non ripetere):\n{recent_phrases}\n\n"
         f"TEMI USATI DI RECENTE (da evitare se possibile):\n{recent_topics}"
     )
 
-    # 1. Tentativo primario con Gemini
+    # 1. Tentativo primario: Gemini 2.5 Flash
     try:
-        print("[phrase_generator] Tentativo con Gemini...")
+        print("[phrase_generator] Tentativo con Gemini 2.5 Flash...")
         return _generate_with_gemini(system_prompt, user_prompt, api_key)
     except Exception as err:
         print(f"[phrase_generator] ERRORE con Gemini: {err}")
-        print("[phrase_generator] Attivazione fallback su Groq (Llama 3.1)...")
+        print("[phrase_generator] Attivazione fallback su Groq...")
 
-    # 2. Fallback gratuito su Groq
+    # 2. Tentativo secondario (Fallback): Groq
     groq_key = getattr(config, "GROQ_API_KEY", None)
     if groq_key:
         try:
