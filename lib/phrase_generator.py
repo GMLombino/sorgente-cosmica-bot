@@ -1,73 +1,54 @@
-"""
-Generazione della frase quotidiana tramite l'API Gemini
-"""
 import json
-import time
-from google import genai
-from google.genai import types
-from google.genai.errors import APIError
-from pydantic import BaseModel
+import config
+import google.generativeai as genai
+from groq import Groq
 
 
-class PhraseOutput(BaseModel):
-    frase_immagine: str
-    spiegazione: str
-    hashtags: str
-    tema: str
+def _generate_with_gemini(system_prompt: str, user_prompt: str, api_key: str) -> dict:
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel("gemini-1.5-flash")
+    response = model.generate_content(f"{system_prompt}\n\n{user_prompt}")
+    raw_text = response.text.replace("```json", "").replace("```", "").strip()
+    return json.loads(raw_text)
 
 
-def generate_phrase(system_prompt: str, recent_phrases: list[str], recent_topics: list[str], api_key: str) -> dict:
-    if not api_key:
-        raise ValueError("GEMINI_API_KEY non configurata.")
-
-    client = genai.Client(api_key=api_key)
-
-    user_prompt = "Genera un nuovo contenuto spirituale per oggi."
-    if recent_phrases:
-        user_prompt += "\n\nEvita di ripetere o rielaborare frasi simili a queste già usate di recente:\n"
-        user_prompt += "\n".join(f"- {p}" for p in recent_phrases)
-    if recent_phrases:
-        user_prompt += "FRASI GIÀ PUBBLICATE (DIVIETO ASSOLUTO di ripetere questi concetti o formulazioni):\n"
-        user_prompt += "\n".join(f"- {phrase}" for phrase in recent_phrases)
-
-    config = types.GenerateContentConfig(
-        system_instruction=system_prompt,
+def _generate_with_groq(system_prompt: str, user_prompt: str, api_key: str) -> dict:
+    client = Groq(api_key=api_key)
+    response = client.chat.completions.create(
+        model="llama-3.1-8b-instant",  # Modello gratuito, veloce e preciso
+        response_format={"type": "json_object"},
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
         temperature=0.7,
-        response_mime_type="application/json",
-        response_schema=PhraseOutput,
-        automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
+    )
+    raw_text = response.choices[0].message.content.strip()
+    return json.loads(raw_text)
+
+
+def generate_phrase(system_prompt: str, recent_phrases: list, recent_topics: list, api_key: str) -> dict:
+    user_prompt = (
+        f"FRASI USATE DI RECENTE (da non ripetere):\n{recent_phrases}\n\n"
+        f"TEMI USATI DI RECENTE (da evitare se possibile):\n{recent_topics}"
     )
 
-    # Tempi di attesa estesi per superare i picchi di traffico reali (in secondi)
-    retry_delays = [30, 60, 120, 180]  # Totale attesa potenziale: ~4.5 minuti
-    max_retries = len(retry_delays) + 1
+    # 1. Tentativo primario con Gemini
+    try:
+        print("[phrase_generator] Tentativo con Gemini...")
+        return _generate_with_gemini(system_prompt, user_prompt, api_key)
+    except Exception as err:
+        print(f"[phrase_generator] ERRORE con Gemini: {err}")
+        print("[phrase_generator] Attivazione fallback su Groq (Llama 3.1)...")
 
-    for attempt in range(1, max_retries + 1):
+    # 2. Fallback gratuito su Groq
+    groq_key = getattr(config, "GROQ_API_KEY", None)
+    if groq_key:
         try:
-            response = client.models.generate_content(
-                model="gemini-3.6-flash",
-                contents=user_prompt,
-                config=config,
-            )
-            data = json.loads(response.text)
-            return {
-                "frase_immagine": data["frase_immagine"],
-                "spiegazione": data["spiegazione"],
-                "hashtags": data["hashtags"],
-                "tema": data["tema"],
-            }
-        except (APIError, Exception) as err:
-            is_transient = False
-            
-            # Controllo se è un errore di server o rate limit (503, 429, 500, 504)
-            if isinstance(err, APIError) and err.code in (503, 429, 500, 504):
-                is_transient = True
-            elif any(code in str(err) for code in ["503", "UNAVAILABLE", "429", "504"]):
-                is_transient = True
+            content = _generate_with_groq(system_prompt, user_prompt, groq_key)
+            print("[phrase_generator] Generazione completata con successo tramite Groq!")
+            return content
+        except Exception as err:
+            print(f"[phrase_generator] ERRORE anche con Groq: {err}")
 
-            if is_transient and attempt < max_retries:
-                wait_time = retry_delays[attempt - 1]
-                print(f"[phrase_generator] Errore temporaneo Gemini ({err}). Server saturo, attesa di {wait_time}s (tentativo {attempt}/{max_retries})...")
-                time.sleep(wait_time)
-            else:
-                raise err
+    raise RuntimeError("Tutti i fornitori AI (Gemini e Groq) hanno risposto con errore.")
