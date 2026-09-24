@@ -1,7 +1,3 @@
-"""
-Composizione dell'immagine finale: sfondo generato dall'IA + frase + firma,
-disegnati con Pillow per un risultato tipografico controllato e coerente.
-"""
 import io
 from itertools import combinations
 import config
