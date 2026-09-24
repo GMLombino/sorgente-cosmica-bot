@@ -5,11 +5,11 @@ from groq import Groq
 
 
 def _generate_with_gemini(system_prompt: str, user_prompt: str, api_key: str) -> dict:
-    """Tenta la generazione con l'API Gemini aggiornata."""
+    """Tenta la generazione tramite il nuovo SDK google-genai."""
     client = genai.Client(api_key=api_key)
     
-    # Prova in sequenza con i nomi di modello Gemini supportati
-    models_to_try = ["gemini-2.5-flash", "gemini-1.5-flash"]
+    # Modelli Gemini stabili e supportati
+    models_to_try = ["gemini-2.5-flash", "gemini-2.5-pro"]
     last_err = None
 
     for model_name in models_to_try:
@@ -28,11 +28,11 @@ def _generate_with_gemini(system_prompt: str, user_prompt: str, api_key: str) ->
 
 
 def _generate_with_groq(system_prompt: str, user_prompt: str, api_key: str) -> dict:
-    """Fallback su Groq utilizzando modelli Llama attualmente attivi."""
+    """Fallback su Groq utilizzando modelli standard leggeri e gratuiti."""
     client = Groq(api_key=api_key)
     
-    # Modelli attivi e supportati su Groq Console
-    models_to_try = ["llama-3.1-8b-instant", "llama-3.3-70b-versatile"]
+    # Lista di modelli stabili e sempre disponibili su Groq Free Tier
+    models_to_try = ["llama-3.1-8b-instant", "llama3-8b-8192"]
     last_err = None
 
     for model_name in models_to_try:
