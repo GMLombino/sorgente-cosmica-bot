@@ -5,22 +5,34 @@ from groq import Groq
 
 
 def _generate_with_gemini(system_prompt: str, user_prompt: str, api_key: str) -> dict:
-    """Tenta la generazione con il nuovo SDK ufficiale google-genai."""
+    """Tenta la generazione con l'API Gemini aggiornata."""
     client = genai.Client(api_key=api_key)
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",  # Oppure "gemini-3.6-flash" quando si resetta la quota
-        contents=f"{system_prompt}\n\n{user_prompt}",
-    )
-    raw_text = response.text.replace("```json", "").replace("```", "").strip()
-    return json.loads(raw_text)
+    
+    # Prova in sequenza con i nomi di modello Gemini supportati
+    models_to_try = ["gemini-2.5-flash", "gemini-1.5-flash"]
+    last_err = None
+
+    for model_name in models_to_try:
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=f"{system_prompt}\n\n{user_prompt}",
+            )
+            raw_text = response.text.replace("```json", "").replace("```", "").strip()
+            return json.loads(raw_text)
+        except Exception as err:
+            last_err = err
+            continue
+
+    raise last_err
 
 
 def _generate_with_groq(system_prompt: str, user_prompt: str, api_key: str) -> dict:
-    """Fallback su Groq con modello attivo e garantito sul piano free."""
+    """Fallback su Groq utilizzando modelli Llama attualmente attivi."""
     client = Groq(api_key=api_key)
     
-    # Prove in sequenza con modelli standard leggeri di Groq
-    models_to_try = ["llama-3.1-8b-instant", "llama3-8b-8192", "mixtral-8x7b-32768"]
+    # Modelli attivi e supportati su Groq Console
+    models_to_try = ["llama-3.1-8b-instant", "llama-3.3-70b-versatile"]
     last_err = None
 
     for model_name in models_to_try:
@@ -55,7 +67,7 @@ def generate_phrase(system_prompt: str, recent_phrases: list, recent_topics: lis
         print("[phrase_generator] Tentativo con Gemini...")
         return _generate_with_gemini(system_prompt, user_prompt, api_key)
     except Exception as err:
-        print(f"[phrase_generator] Gemini in errore/quota esaurita ({err}). Passaggio a Groq...")
+        print(f"[phrase_generator] Gemini in errore ({err}). Passaggio a Groq...")
 
     # 2. Tentativo secondario (Fallback): Groq
     groq_key = getattr(config, "GROQ_API_KEY", None)
