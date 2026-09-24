@@ -8,7 +8,7 @@ def _generate_with_gemini(system_prompt: str, user_prompt: str, api_key: str) ->
     """Tenta la generazione con il nuovo SDK ufficiale google-genai."""
     client = genai.Client(api_key=api_key)
     response = client.models.generate_content(
-        model="gemini-2.5-flash",
+        model="gemini-3.6-flash",
         contents=f"{system_prompt}\n\n{user_prompt}",
     )
     raw_text = response.text.replace("```json", "").replace("```", "").strip()
