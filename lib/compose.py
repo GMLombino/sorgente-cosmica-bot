@@ -10,9 +10,15 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageStat
 
 def _load_variable_font(size, font_path=None):
     """
-    Carica il font configurato in config.py o un font specifico.
+    Carica il font specificato o effettua il fallback su config.FONT_BODY_PATH
+    (o config.FONT_PATH per retrocompatibilità).
     """
-    path = font_path if font_path else config.FONT_PATH
+    if font_path:
+        path = font_path
+    else:
+        # Fallback sicuro sulle variabili presenti nel tuo config.py
+        path = getattr(config, "FONT_BODY_PATH", getattr(config, "FONT_PATH", "assets/fonts/Raleway-Bold.ttf"))
+    
     return ImageFont.truetype(path, size=size)
 
 
@@ -133,9 +139,9 @@ def _make_balanced_lines(draw, text, font, max_width, max_lines=3):
     return lines
 
 
-def _fit_font_and_wrap(draw, text, max_width, max_height, start_size=90, min_size=38, max_lines=3):
+def _fit_font_and_wrap(draw, text, max_width, max_height, start_size=90, min_size=38, max_lines=3, font_path=None):
     for size in range(start_size, min_size - 1, -1):
-        font = _load_variable_font(size)
+        font = _load_variable_font(size, font_path=font_path)
         lines = _make_balanced_lines(draw, text, font, max_width, max_lines=max_lines)
         if not lines:
             continue
@@ -146,7 +152,7 @@ def _fit_font_and_wrap(draw, text, max_width, max_height, start_size=90, min_siz
         if total_height <= max_height:
             return font, lines, line_height, total_height
 
-    font = _load_variable_font(min_size)
+    font = _load_variable_font(min_size, font_path=font_path)
     lines = _make_balanced_lines(draw, text, font, max_width, max_lines=max_lines)
     line_height = int(_text_height(draw, "Ag", font) * 1.18)
     total_height = line_height * len(lines)
@@ -250,11 +256,14 @@ def compose_image(background, phrase, signature=None, gold_hex=None, white_hex=N
 
     margin = int(width * 0.10)
     max_text_width = width - (margin * 2)
-    max_text_height = int(height * 0.40)  # Aumentato leggermente per dare pi spinta alle 3 righe
+    max_text_height = int(height * 0.40)
+
+    # Usa FONT_BODY_PATH per la frase principale
+    body_font_path = getattr(config, "FONT_BODY_PATH", getattr(config, "FONT_PATH", None))
 
     font, lines, line_height, total_text_height = _fit_font_and_wrap(
         draw, phrase, max_width=max_text_width, max_height=max_text_height,
-        start_size=90, min_size=38, max_lines=3
+        start_size=90, min_size=38, max_lines=3, font_path=body_font_path
     )
 
     center_x = width / 2
@@ -294,7 +303,8 @@ def compose_image(background, phrase, signature=None, gold_hex=None, white_hex=N
 
     # FIRMA
     if signature:
-        sig_font_path = getattr(config, "FONT_SIGNATURE_PATH", config.FONT_PATH)
+        # Usa FONT_SIGNATURE_PATH per la firma
+        sig_font_path = getattr(config, "FONT_SIGNATURE_PATH", body_font_path)
         sig_font = _load_variable_font(32, font_path=sig_font_path)
 
         sig_bbox = draw.textbbox((0, 0), signature, font=sig_font)
