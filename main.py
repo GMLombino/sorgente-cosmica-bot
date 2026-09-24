@@ -73,7 +73,7 @@ def run() -> None:
     content = phrase_generator.generate_phrase(
         system_prompt=config.PHRASE_SYSTEM_PROMPT,
         recent_phrases=recent_phrases,
-        recent_topics=recent_topics,  # <--- Passiamo anche i temi usati!
+        recent_topics=recent_topics,
         api_key=config.GEMINI_API_KEY,
     )
     print(f"[main] Tema scelto: {content.get('tema', 'Non specificato')}")
@@ -82,29 +82,25 @@ def run() -> None:
     # 3. Caricamento sfondo dalla cartella
     background_bytes = get_background()
 
-    # 4. Composizione dell'immagine finale con il testo
+    # 4. Composizione dell'immagine finale (Allineata al nuovo lib/compose.py)
     print("[main] Composizione immagine in corso...")
-    font_body_var = getattr(config, "FONT_BODY_VARIATION", "Regular")
-    font_sig_var = getattr(config, "FONT_SIGNATURE_VARIATION", "Regular")
-
-    final_image_bytes = compose.compose_image(
-        background_bytes=background_bytes,
+    final_image = compose.compose_image(
+        background=background_bytes,
         phrase=content["frase_immagine"],
         signature=config.SIGNATURE_TEXT,
-        width=config.IMAGE_WIDTH,
-        height=config.IMAGE_HEIGHT,
-        font_body_path=config.FONT_BODY_PATH,
-        font_body_variation=font_body_var,
-        font_signature_path=config.FONT_SIGNATURE_PATH,
-        font_signature_variation=font_sig_var,
         gold_hex=config.GOLD_HEX,
         white_hex=config.WHITE_HEX,
     )
 
-    # 5. Hosting dell'immagine su GitHub (per URL pubblico)
-    print("[main] Caricamento immagine su GitHub Pages/Repository...")
+    # Conversione dell'immagine finale in bytes per l'upload
+    out_buffer = io.BytesIO()
+    final_image.save(out_buffer, format="JPEG", quality=95)
+    final_image_bytes = out_buffer.getvalue()
+
+    # 5. Hosting temporaneo dell'immagine per URL pubblico Instagram
+    print("[main] Caricamento immagine su GitHub per URL pubblico...")
     timestamp = int(time.time())
-    target_path = f"generated_posts/post_{timestamp}.jpg"
+    target_path = f"tmp_post_{timestamp}.jpg"  # Salva come file temporaneo singolo anziché in una cartella
 
     public_image_url = publisher.upload_file_to_github(
         repo=config.GITHUB_REPO,
@@ -112,9 +108,9 @@ def run() -> None:
         content_bytes=final_image_bytes,
         token=config.GITHUB_TOKEN,
         branch=config.GITHUB_IMAGES_BRANCH,
-        commit_message=f"Bot update: generate post {timestamp}",
+        commit_message=f"Bot update: generate temp post {timestamp} [skip ci]",
     )
-    print(f"[main] Immagine pubblicata su URL: {public_image_url}")
+    print(f"[main] Immagine temporanea disponibile su: {public_image_url}")
 
     # 6. Preparazione della caption per Instagram
     caption = (
