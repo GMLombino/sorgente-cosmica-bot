@@ -4,31 +4,11 @@ from google import genai
 from groq import Groq
 
 
-# ============================================================
-# MODELLI CONFIGURATI
-# ============================================================
-
-GEMINI_MODELS_TO_TRY = [
-    "gemini-3.1-pro-preview",
-    "gemini-3.5-flash",
-]
-
-GROQ_MODELS_TO_TRY = [
-    "openai/gpt-oss-20b",
-]
-
-
-# ============================================================
-# UTILITY
-# ============================================================
-
 def _parse_json_response(raw_text: str) -> dict:
-    """Converte la risposta del modello in un dizionario Python."""
     if not raw_text:
-        raise ValueError("Il modello ha restituito una risposta vuota.")
+        raise ValueError("Risposta vuota dal modello.")
 
     cleaned_text = raw_text.strip()
-
     if cleaned_text.startswith("```json"):
         cleaned_text = cleaned_text[len("```json"):].strip()
     elif cleaned_text.startswith("```"):
@@ -38,7 +18,6 @@ def _parse_json_response(raw_text: str) -> dict:
         cleaned_text = cleaned_text[:-len("```")].strip()
 
     result = json.loads(cleaned_text)
-
     if not isinstance(result, dict):
         raise ValueError("La risposta JSON non è un oggetto.")
 
@@ -46,57 +25,110 @@ def _parse_json_response(raw_text: str) -> dict:
 
 
 # ============================================================
-# GEMINI
+# DISCOVERY DINAMICA GEMINI
 # ============================================================
 
-def _generate_with_gemini(
-    system_prompt: str,
-    user_prompt: str,
-    api_key: str,
-) -> dict:
-    """Generazione tramite SDK google-genai."""
-    client = genai.Client(api_key=api_key)
-    last_err = None
+def _discover_gemini_models(client) -> list:
+    """Richiede a Google i modelli disponibili ed estrae solo quelli idonei."""
+    valid_models = []
+    
+    try:
+        print("[phrase_generator] Interrogazione API Gemini per elenco modelli attivi...")
+        models_page = client.models.list()
+        
+        for m in models_page:
+            model_id = getattr(m, "name", "").replace("models/", "")
+            
+            # Filtro 1: Deve contenere 'gemini' nel nome
+            if "gemini" not in model_id.lower():
+                continue
+                
+            # Filtro 2: Escludiamo modelli di solo embedding o audio/visione pura
+            if any(forbidden in model_id.lower() for forbidden in ["embedding", "imagen", "audio", "whisper", "tts"]):
+                continue
 
-    for model_name in GEMINI_MODELS_TO_TRY:
+            # Filtro 3: Verifica della capacità 'generateContent' se dichiarata
+            supported_actions = getattr(m, "supported_actions", None)
+            if supported_actions and "generateContent" not in supported_actions:
+                continue
+
+            valid_models.append(model_id)
+
+        # Ordina per mettere in cima i modelli più recenti o performanti
+        valid_models.sort(reverse=True)
+        print(f"[phrase_generator] Modelli Gemini idonei trovati: {valid_models}")
+
+    except Exception as err:
+        print(f"[phrase_generator] Errore durante la discovery Gemini: {err}")
+
+    return valid_models
+
+
+def _generate_with_gemini(system_prompt: str, user_prompt: str, api_key: str) -> dict:
+    client = genai.Client(api_key=api_key)
+    models_to_try = _discover_gemini_models(client)
+
+    if not models_to_try:
+        raise RuntimeError("Nessun modello Gemini idoneo rilevato dall'API.")
+
+    last_err = None
+    for model_name in models_to_try:
         try:
             print(f"[phrase_generator] Gemini: tentativo con {model_name}...")
-
             response = client.models.generate_content(
                 model=model_name,
                 contents=f"{system_prompt}\n\n{user_prompt}",
             )
-
-            raw_text = response.text
-            return _parse_json_response(raw_text)
+            return _parse_json_response(response.text)
 
         except Exception as err:
             last_err = err
-            print(f"[phrase_generator] Gemini {model_name} fallito: {err}")
+            print(f"[phrase_generator] Gemini {model_name} non disponibile o fallito: {err}")
+            continue
 
-    if last_err is not None:
-        raise last_err
-
-    raise RuntimeError("Nessun modello Gemini configurato.")
+    raise last_err or RuntimeError("Nessun modello Gemini ha risposto.")
 
 
 # ============================================================
-# GROQ
+# DISCOVERY DINAMICA GROQ
 # ============================================================
 
-def _generate_with_groq(
-    system_prompt: str,
-    user_prompt: str,
-    api_key: str,
-) -> dict:
-    """Fallback su Groq con JSON mode."""
+def _discover_groq_models(client) -> list:
+    """Richiede a Groq i modelli disponibili ed estrae i modelli di chat."""
+    valid_models = []
+
+    try:
+        print("[phrase_generator] Interrogazione API Groq per elenco modelli attivi...")
+        response = client.models.list()
+        
+        for m in response.data:
+            model_id = getattr(m, "id", "")
+
+            # Escludiamo audio (Whisper) e guardrails
+            if any(forbidden in model_id.lower() for forbidden in ["whisper", "guard", "safetensors"]):
+                continue
+
+            valid_models.append(model_id)
+
+        print(f"[phrase_generator] Modelli Groq idonei trovati: {valid_models}")
+
+    except Exception as err:
+        print(f"[phrase_generator] Errore durante la discovery Groq: {err}")
+
+    return valid_models
+
+
+def _generate_with_groq(system_prompt: str, user_prompt: str, api_key: str) -> dict:
     client = Groq(api_key=api_key)
-    last_err = None
+    models_to_try = _discover_groq_models(client)
 
-    for model_name in GROQ_MODELS_TO_TRY:
+    if not models_to_try:
+        raise RuntimeError("Nessun modello Groq idoneo rilevato dall'API.")
+
+    last_err = None
+    for model_name in models_to_try:
         try:
             print(f"[phrase_generator] Groq: tentativo con {model_name}...")
-
             response = client.chat.completions.create(
                 model=model_name,
                 response_format={"type": "json_object"},
@@ -106,31 +138,22 @@ def _generate_with_groq(
                 ],
                 temperature=0.7,
             )
-
             raw_text = response.choices[0].message.content.strip()
             return _parse_json_response(raw_text)
 
         except Exception as err:
             last_err = err
-            print(f"[phrase_generator] Groq {model_name} fallito: {err}")
+            print(f"[phrase_generator] Groq {model_name} non disponibile o fallito: {err}")
+            continue
 
-    if last_err is not None:
-        raise last_err
-
-    raise RuntimeError("Nessun modello Groq configurato.")
+    raise last_err or RuntimeError("Nessun modello Groq ha risposto.")
 
 
 # ============================================================
-# FUNZIONE PRINCIPALE
+# MAIN
 # ============================================================
 
-def generate_phrase(
-    system_prompt: str,
-    recent_phrases: list,
-    recent_topics: list,
-    api_key: str,
-) -> dict:
-    """Genera una frase con fallback automatico Gemini -> Groq."""
+def generate_phrase(system_prompt: str, recent_phrases: list, recent_topics: list, api_key: str) -> dict:
     user_prompt = (
         "FRASI USATE DI RECENTE (da non ripetere):\n"
         f"{recent_phrases}\n\n"
@@ -138,40 +161,18 @@ def generate_phrase(
         f"{recent_topics}"
     )
 
-    # 1. Gemini
+    # 1. Tentativo Gemini dinamico
     try:
-        print("[phrase_generator] Tentativo di generazione con Gemini...")
-        result = _generate_with_gemini(
-            system_prompt=system_prompt,
-            user_prompt=user_prompt,
-            api_key=api_key,
-        )
-        print("[phrase_generator] Post generato con successo tramite Gemini.")
-        return result
+        return _generate_with_gemini(system_prompt, user_prompt, api_key)
     except Exception as err:
-        print(f"[phrase_generator] Gemini in errore: {err}. Passaggio a Groq...")
+        print(f"[phrase_generator] Tutti i modelli Gemini sono falliti ({err}). Passaggio a Groq...")
 
-    # 2. Groq
+    # 2. Fallback Groq dinamico
     groq_key = getattr(config, "GROQ_API_KEY", None)
-
     if groq_key:
         try:
-            print("[phrase_generator] Tentativo di generazione con Groq...")
-            result = _generate_with_groq(
-                system_prompt=system_prompt,
-                user_prompt=user_prompt,
-                api_key=groq_key,
-            )
-            print("[phrase_generator] Post generato con successo tramite Groq.")
-            return result
+            return _generate_with_groq(system_prompt, user_prompt, groq_key)
         except Exception as err:
-            print(f"[phrase_generator] ERRORE anche con Groq: {err}")
-    else:
-        print("[phrase_generator] GROQ_API_KEY non configurata.")
+            print(f"[phrase_generator] Errore anche con Groq dinamico: {err}")
 
-    raise RuntimeError("Tutti i fornitori AI (Gemini e Groq) hanno risposto con errore.")
-
-    raise RuntimeError(
-        "Tutti i fornitori AI "
-        "(Gemini e Groq) hanno risposto con errore."
-    )
+    raise RuntimeError("Nessun provider AI ha risposto con successo.")
