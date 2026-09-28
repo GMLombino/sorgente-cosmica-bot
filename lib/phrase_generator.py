@@ -1,14 +1,21 @@
 import json
+import re
 import config
 from google import genai
 from groq import Groq
 
 
+# ============================================================
+# UTILITY PARSING JSON
+# ============================================================
+
 def _parse_json_response(raw_text: str) -> dict:
+    """Converte la risposta del modello in un dizionario Python."""
     if not raw_text:
-        raise ValueError("Risposta vuota dal modello.")
+        raise ValueError("Il modello ha restituito una risposta vuota.")
 
     cleaned_text = raw_text.strip()
+
     if cleaned_text.startswith("```json"):
         cleaned_text = cleaned_text[len("```json"):].strip()
     elif cleaned_text.startswith("```"):
@@ -18,6 +25,7 @@ def _parse_json_response(raw_text: str) -> dict:
         cleaned_text = cleaned_text[:-len("```")].strip()
 
     result = json.loads(cleaned_text)
+
     if not isinstance(result, dict):
         raise ValueError("La risposta JSON non è un oggetto.")
 
@@ -25,43 +33,91 @@ def _parse_json_response(raw_text: str) -> dict:
 
 
 # ============================================================
-# DISCOVERY DINAMICA GEMINI
+# GEMINI - SCORING & DISCOVERY DINAMICA
 # ============================================================
 
+def _score_gemini_model(model_id: str) -> float:
+    """
+    Calcola un punteggio dinamico di idoneità per il modello.
+    Più alto è il punteggio, più il modello è recente e adatto al testo.
+    """
+    score = 0.0
+    name_lower = model_id.lower()
+
+    # 1. Estrazione dinamica della versione (es. '3.8', '3.5', '2.5')
+    version_match = re.search(r"gemini-(\d+(?:\.\d+)?)", name_lower)
+    if version_match:
+        try:
+            version_num = float(version_match.group(1))
+            score += version_num * 100.0  # Es. v3.8 -> 380, v3.5 -> 350
+        except ValueError:
+            pass
+
+    # 2. Bonus per famiglie adatte alla generazione di testo
+    if "pro" in name_lower:
+        score += 50.0
+    elif "flash" in name_lower:
+        score += 40.0
+
+    # 3. Penalizzazione per varianti meno idonee o sperimentali
+    if "lite" in name_lower:
+        score -= 10.0
+    if "preview" in name_lower or "exp" in name_lower:
+        score -= 5.0
+
+    return score
+
+
 def _discover_gemini_models(client) -> list:
-    """Richiede a Google i modelli disponibili ed estrae solo quelli idonei."""
-    valid_models = []
-    
+    """
+    Richiede a Google i modelli attivi, filtra quelli non testuali o specialistici
+    e li ordina dinamicamente dal più performante al meno performante.
+    """
+    FORBIDDEN_KEYWORDS = [
+        "robotics", "image", "audio", "whisper", "tts", 
+        "embedding", "imagen", "transcribe", "computer-use", "customtools"
+    ]
+
+    valid_models_with_score = []
+
     try:
         print("[phrase_generator] Interrogazione API Gemini per elenco modelli attivi...")
         models_page = client.models.list()
-        
+
         for m in models_page:
             model_id = getattr(m, "name", "").replace("models/", "")
-            
-            # Filtro 1: Deve contenere 'gemini' nel nome
+
+            # Filtro 1: Deve essere un modello Gemini
             if "gemini" not in model_id.lower():
                 continue
-                
-            # Filtro 2: Escludiamo modelli di solo embedding o audio/visione pura
-            if any(forbidden in model_id.lower() for forbidden in ["embedding", "imagen", "audio", "whisper", "tts"]):
+
+            # Filtro 2: Esclusione di modelli specialistici (robotica, immagini, audio, ecc.)
+            if any(forbidden in model_id.lower() for forbidden in FORBIDDEN_KEYWORDS):
                 continue
 
-            # Filtro 3: Verifica della capacità 'generateContent' se dichiarata
+            # Filtro 3: Controllo capability generateContent
             supported_actions = getattr(m, "supported_actions", None)
             if supported_actions and "generateContent" not in supported_actions:
                 continue
 
-            valid_models.append(model_id)
+            # Calcolo del punteggio dinamico
+            score = _score_gemini_model(model_id)
+            valid_models_with_score.append((model_id, score))
 
-        # Ordina per mettere in cima i modelli più recenti o performanti
-        valid_models.sort(reverse=True)
-        print(f"[phrase_generator] Modelli Gemini idonei trovati: {valid_models}")
+        # Ordinamento decrescente in base al punteggio
+        valid_models_with_score.sort(key=lambda x: x[1], reverse=True)
+
+        sorted_models = [m[0] for m in valid_models_with_score]
+
+        print("[phrase_generator] Modelli Gemini idonei ordinati dinamicamente per punteggio:")
+        for model, score in valid_models_with_score[:5]:
+            print(f"  -> {model} (punteggio: {score})")
+
+        return sorted_models
 
     except Exception as err:
         print(f"[phrase_generator] Errore durante la discovery Gemini: {err}")
-
-    return valid_models
+        return []
 
 
 def _generate_with_gemini(system_prompt: str, user_prompt: str, api_key: str) -> dict:
@@ -79,6 +135,10 @@ def _generate_with_gemini(system_prompt: str, user_prompt: str, api_key: str) ->
                 model=model_name,
                 contents=f"{system_prompt}\n\n{user_prompt}",
             )
+            
+            if not response.text:
+                raise ValueError("Risposta vuota da Gemini.")
+
             return _parse_json_response(response.text)
 
         except Exception as err:
@@ -90,21 +150,21 @@ def _generate_with_gemini(system_prompt: str, user_prompt: str, api_key: str) ->
 
 
 # ============================================================
-# DISCOVERY DINAMICA GROQ
+# GROQ - DISCOVERY DINAMICA
 # ============================================================
 
 def _discover_groq_models(client) -> list:
-    """Richiede a Groq i modelli disponibili ed estrae i modelli di chat."""
+    """Richiede a Groq i modelli disponibili ed estrae i modelli di chat idonei."""
     valid_models = []
 
     try:
         print("[phrase_generator] Interrogazione API Groq per elenco modelli attivi...")
         response = client.models.list()
-        
+
         for m in response.data:
             model_id = getattr(m, "id", "")
 
-            # Escludiamo audio (Whisper) e guardrails
+            # Escludiamo modelli audio e guardrails
             if any(forbidden in model_id.lower() for forbidden in ["whisper", "guard", "safetensors"]):
                 continue
 
@@ -150,10 +210,15 @@ def _generate_with_groq(system_prompt: str, user_prompt: str, api_key: str) -> d
 
 
 # ============================================================
-# MAIN
+# FUNZIONE PRINCIPALE
 # ============================================================
 
-def generate_phrase(system_prompt: str, recent_phrases: list, recent_topics: list, api_key: str) -> dict:
+def generate_phrase(
+    system_prompt: str,
+    recent_phrases: list,
+    recent_topics: list,
+    api_key: str,
+) -> dict:
     user_prompt = (
         "FRASI USATE DI RECENTE (da non ripetere):\n"
         f"{recent_phrases}\n\n"
@@ -163,6 +228,7 @@ def generate_phrase(system_prompt: str, recent_phrases: list, recent_topics: lis
 
     # 1. Tentativo Gemini dinamico
     try:
+        print("[phrase_generator] Avvio generazione con Gemini...")
         return _generate_with_gemini(system_prompt, user_prompt, api_key)
     except Exception as err:
         print(f"[phrase_generator] Tutti i modelli Gemini sono falliti ({err}). Passaggio a Groq...")
@@ -171,6 +237,7 @@ def generate_phrase(system_prompt: str, recent_phrases: list, recent_topics: lis
     groq_key = getattr(config, "GROQ_API_KEY", None)
     if groq_key:
         try:
+            print("[phrase_generator] Avvio generazione con Groq...")
             return _generate_with_groq(system_prompt, user_prompt, groq_key)
         except Exception as err:
             print(f"[phrase_generator] Errore anche con Groq dinamico: {err}")
