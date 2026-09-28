@@ -1,5 +1,6 @@
 import json
 import re
+import time
 import config
 from google import genai
 from groq import Groq
@@ -44,7 +45,7 @@ def _score_gemini_model(model_id: str) -> float:
     score = 0.0
     name_lower = model_id.lower()
 
-    # 1. Estrazione dinamica della versione (es. '3.8', '3.5', '2.5')
+    # 1. Estrazione dinamica della versione (es. '3.8', '3.5')
     version_match = re.search(r"gemini-(\d+(?:\.\d+)?)", name_lower)
     if version_match:
         try:
@@ -70,12 +71,14 @@ def _score_gemini_model(model_id: str) -> float:
 
 def _discover_gemini_models(client) -> list:
     """
-    Richiede a Google i modelli attivi, filtra quelli non testuali o specialistici
-    e li ordina dinamicamente dal più performante al meno performante.
+    Richiede a Google i modelli attivi, filtra quelli non testuali, specialistici
+    o deprecati e li ordina dinamicamente dal più performante al meno performante.
     """
     FORBIDDEN_KEYWORDS = [
         "robotics", "image", "audio", "whisper", "tts", 
-        "embedding", "imagen", "transcribe", "computer-use", "customtools"
+        "embedding", "imagen", "transcribe", "computer-use", "customtools",
+        # Modelli deprecati o ritirati
+        "2.5-pro", "2.5-flash", "2.5-flash-lite"
     ]
 
     valid_models_with_score = []
@@ -91,7 +94,7 @@ def _discover_gemini_models(client) -> list:
             if "gemini" not in model_id.lower():
                 continue
 
-            # Filtro 2: Esclusione di modelli specialistici (robotica, immagini, audio, ecc.)
+            # Filtro 2: Esclusione di modelli specialistici o deprecati
             if any(forbidden in model_id.lower() for forbidden in FORBIDDEN_KEYWORDS):
                 continue
 
@@ -129,22 +132,35 @@ def _generate_with_gemini(system_prompt: str, user_prompt: str, api_key: str) ->
 
     last_err = None
     for model_name in models_to_try:
-        try:
-            print(f"[phrase_generator] Gemini: tentativo con {model_name}...")
-            response = client.models.generate_content(
-                model=model_name,
-                contents=f"{system_prompt}\n\n{user_prompt}",
-            )
-            
-            if not response.text:
-                raise ValueError("Risposta vuota da Gemini.")
+        # Fino a 2 tentativi per modello con una breve pausetta per superare picchi temporanei (503/429)
+        for attempt in range(2):
+            try:
+                if attempt > 0:
+                    print(f"[phrase_generator] Ritentativo per {model_name} (pausa 3s per rate limit)...")
+                    time.sleep(3)
 
-            return _parse_json_response(response.text)
+                print(f"[phrase_generator] Gemini: tentativo con {model_name}...")
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=f"{system_prompt}\n\n{user_prompt}",
+                )
 
-        except Exception as err:
-            last_err = err
-            print(f"[phrase_generator] Gemini {model_name} non disponibile o fallito: {err}")
-            continue
+                if not response.text:
+                    raise ValueError("Risposta vuota da Gemini.")
+
+                return _parse_json_response(response.text)
+
+            except Exception as err:
+                last_err = err
+                err_msg = str(err)
+                
+                # Se è un problema di domanda/quota temporanea (503 / 429), fa un retry veloce
+                if ("503" in err_msg or "429" in err_msg) and attempt == 0:
+                    print(f"[phrase_generator] Gemini {model_name} in sovraccarico o rate limit (tentativo 1/2).")
+                    continue
+                
+                print(f"[phrase_generator] Gemini {model_name} non disponibile o fallito: {err}")
+                break
 
     raise last_err or RuntimeError("Nessun modello Gemini ha risposto.")
 
