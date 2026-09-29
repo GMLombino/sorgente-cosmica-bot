@@ -67,25 +67,27 @@ Genera un post che risvegli l'anima, scegliendo ogni volta un tema diverso tra q
 - Echi di ermetismo ("come in alto, così in basso", "conosci te stesso", ecc.)
 
 Linee guida per la frase ('frase_immagine'):
-- ROTAZIONE TEMI OBLIGATORIA: Scegli un tema DIVERSO da quelli usati di recente per garantire massima varietà.
+- ROTAZIONE TEMI OBBLIGATORIA: Scegli un tema DIVERSO da quelli usati di recente per garantire massima varietà.
 - SEMPLICITÀ E CHIAREZZA: La frase deve essere IMMEDIATAMENTE COMPRENSIBILE da tutti. Evita concetti astratti o un linguaggio inutilmente complesso. Usa parole semplici ma d'impatto.
 - Deve essere un'AFFERMAZIONE singola, potente, diretta e perentoria.
-- LUNGHEZZA MASSIMA: Massimo 15 parole, d'impatto visivo immediato.
+- LUNGHEZZA MASSIMA: Massimo 12 parole. Brevissima e d'impatto visivo immediato.
 - DIVIETO ASSOLUTO DOMANDE: Non inserire MAI domande o quesiti finali (es. "Sei pronto?", "Cosa aspetti?").
 - DIVIETO ASSOLUTO IPOTESI: Non iniziare MAI con ipotetici ("Se...", "E se...", "Forse...").
 - DIVIETO CLICHÉ AI: Evita espressioni abusate come "Ricorda che", "Nel viaggio di", "L'universo ti guida", "Abbraccia".
 
 Linee guida per la spiegazione ('spiegazione'):
-- Struttura la spiegazione in due parti ben distinte:
+- Struttura la spiegazione in tre parti ben distinte:
   1. Un breve paragrafo (2 frasi chiare) che approfondisce il significato della frase con parole piane.
   2. Un consiglio di vita generale introdotto dall'etichetta '🌱 Applicazione pratica:'.
+  3. Una brevissima frase di invito a seguire la pagina e lasciare un mi piace.
 - REGOLE PER L'APPLICAZIONE PRATICA: NON dare compiti a breve termine (evita "oggi fai...", "dedica 5 minuti a..."). Deve essere una FILOSOFIA DI VITA GENERALE o un ATTEGGIAMENTO INTERIORE da adottare sempre (es. "Non tormentarti per il passato o il futuro: la vera pace si ottiene imparando a dimorare nel momento presente.").
-- USA EMOJI CON PARSIMONIA: Massimo 1 o 2 in tutta la didascalia.
+- REGOLE PER L'INVITO (CTA): Breve, minimale e non invadente (es. "Se questa frase ti risuona, lascia un mi piace e segui la pagina per altri spunti di riflessione.").
+- USA EMOJI CON PARSIMONIA: Massimo 2 o 3 in tutta la didascalia.
 
 Rispondi ESCLUSIVAMENTE con un oggetto JSON valido con questa struttura esatta:
 {
   "frase_immagine": "Singola affermazione chiara, semplice e d'impatto di massimo 12 parole.",
-  "spiegazione": "Spiegazione semplice di 2 frasi.\\n\\n🌱 Applicazione pratica:\\nAtteggiamento di vita generale da adottare sempre.",
+  "spiegazione": "Spiegazione semplice di 2 frasi.\\n\\n🌱 Applicazione pratica:\\nAtteggiamento di vita generale da adottare sempre.\\n\\n✨ Se questo pensiero ti è stato utile, lascia un mi piace e segui la pagina per camminare insieme ogni giorno.",
   "hashtags": "Esattamente 5 hashtag in italiano, separati da spazio, pertinenti al tema.",
   "tema": "Nome del tema scelto tra quelli in elenco"
 }
