@@ -1,5 +1,6 @@
 """
 - Carica un file nel repo GitHub pubblico (per ottenere un URL pubblico da dare a Instagram)
+- Elimina un file temporaneo dal repo GitHub
 - Pubblica un'immagine sull'account Instagram tramite la Graph API
 """
 import base64
@@ -44,6 +45,29 @@ def upload_file_to_github(repo: str, path: str, content_bytes: bytes, token: str
     resp.raise_for_status()
 
     return f"https://raw.githubusercontent.com/{repo}/{branch}/{path}"
+
+
+def delete_file_from_github(repo: str, path: str, token: str, branch: str) -> None:
+    """
+    Elimina un file dal repo GitHub tramite la Contents API.
+    Invia la richiesta DELETE previa lettura dello 'sha' del file.
+    """
+    url = f"{GITHUB_API}/repos/{repo}/contents/{path}"
+    headers = _github_headers(token)
+
+    existing = requests.get(url, headers=headers, params={"ref": branch}, timeout=30)
+    if existing.status_code == 200:
+        sha = existing.json().get("sha")
+        payload = {
+            "message": f"Bot cleanup: delete temp image {path} [skip ci]",
+            "sha": sha,
+            "branch": branch,
+        }
+        resp = requests.delete(url, headers=headers, json=payload, timeout=30)
+        resp.raise_for_status()
+        print(f"[publisher] Immagine temporanea {path} rimossa da GitHub.")
+    else:
+        print(f"[publisher] Impossibile trovare il file {path} per la cancellazione (Status: {existing.status_code})")
 
 
 def _graph_request(method: str, path: str, max_retries: int = 3, **kwargs) -> dict:
