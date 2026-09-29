@@ -100,7 +100,7 @@ def run() -> None:
     # 5. Hosting temporaneo dell'immagine per URL pubblico Instagram
     print("[main] Caricamento immagine su GitHub per URL pubblico...")
     timestamp = int(time.time())
-    target_path = f"tmp_post_{timestamp}.jpg"  # Salva come file temporaneo singolo anziché in una cartella
+    target_path = f"tmp_post_{timestamp}.jpg"
 
     public_image_url = publisher.upload_file_to_github(
         repo=config.GITHUB_REPO,
@@ -128,7 +128,19 @@ def run() -> None:
     )
     print(f"[main] Post pubblicato con successo! ID: {post_id}")
 
-    # 8. Aggiornamento e salvataggio dello storico
+    # 8. Pulizia dell'immagine temporanea da GitHub
+    print("[main] Rimozione immagine temporanea da GitHub...")
+    try:
+        publisher.delete_file_from_github(
+            repo=config.GITHUB_REPO,
+            path=target_path,
+            token=config.GITHUB_TOKEN,
+            branch=config.GITHUB_IMAGES_BRANCH,
+        )
+    except Exception as exc:  # noqa: BLE001
+        print(f"[main] Errore non fatale durante la pulizia del file temporaneo: {exc}")
+
+    # 9. Aggiornamento e salvataggio dello storico
     new_entry = {
         "post_id": post_id,
         "image_url": public_image_url,
