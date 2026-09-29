@@ -3,6 +3,7 @@ import re
 import time
 import config
 from google import genai
+from google.genai import types
 from groq import Groq
 
 
@@ -130,6 +131,11 @@ def _generate_with_gemini(system_prompt: str, user_prompt: str, api_key: str) ->
     if not models_to_try:
         raise RuntimeError("Nessun modello Gemini idoneo rilevato dall'API.")
 
+    # Disabilitiamo l'Automatic Function Calling (AFC) per evitare il warning di Google SDK
+    gen_config = types.GenerateContentConfig(
+        automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True)
+    )
+
     last_err = None
     for model_name in models_to_try:
         # Fino a 2 tentativi per modello con una breve pausetta per superare picchi temporanei (503/429)
@@ -143,6 +149,7 @@ def _generate_with_gemini(system_prompt: str, user_prompt: str, api_key: str) ->
                 response = client.models.generate_content(
                     model=model_name,
                     contents=f"{system_prompt}\n\n{user_prompt}",
+                    config=gen_config,
                 )
 
                 if not response.text:
